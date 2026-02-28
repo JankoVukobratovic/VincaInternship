@@ -1,0 +1,3 @@
+righe  60
+colonne  120
+dwell-time 3,000000
