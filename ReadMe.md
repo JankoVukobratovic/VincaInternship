@@ -1,4 +1,4 @@
-# VincaInternship – XRF Spektralna Analiza Freske
+# XRF Spektralna Analiza Freske
 
 ## O projektu
 
@@ -121,4 +121,4 @@ VincaInternship-master/
 
 ---
 
-*Vinca Institute – XRF Analiza | Python 3 + NumPy + SciPy + Matplotlib*
+
