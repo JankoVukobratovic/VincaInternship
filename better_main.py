@@ -1,5 +1,6 @@
 import math
 import os
+from typing import Any
 
 import numpy as np
 from matplotlib import pyplot as plt
@@ -25,13 +26,6 @@ ELEMENT_DIFF_MAP = {
         "cmap": "seismic" # Diverging: Blue (negative), White (zero), Red (positive)
     } for key, val in ELEMENT_MAP.items()
 }
-
-
-def get_calibrated_axis(num_channels):
-    cal_pts = np.array([[219, 6.4], [278, 8], [363, 10.5], [436, 12.6], [869, 25.3]])
-    slope, intercept, _, _, _ = linregress(cal_pts[:, 0], cal_pts[:, 1])
-    return (np.arange(num_channels) * slope) + intercept
-
 
 def get_dynamic_area(energy_axis, cps, target_kev):
     idx = int(np.argmin(np.abs(energy_axis - target_kev)))
@@ -123,7 +117,7 @@ def parse_mca_file(filepath):
         "time": float(metadata.get("REAL_TIME", 1.0))
     }
 
-def render_element_grid(matrix_3d: np.ndarray[any, np.dtype[np.float64]], element_keys ,element_map, width = 120, height = 60, savename ="", figname =""):
+def render_element_grid(matrix_3d: np.ndarray[Any, np.dtype[np.float64]], element_keys ,element_map, width = 120, height = 60, savename ="", figname =""):
     num_elements = len(element_keys)
     cols = 3
     rows = math.ceil(num_elements / cols)
@@ -145,7 +139,7 @@ def render_element_grid(matrix_3d: np.ndarray[any, np.dtype[np.float64]], elemen
         # fraction=0.03 makes the colorbar thin
         # pad=0.02 keeps it close to the image
         cbar = plt.colorbar(im, ax=axes[idx], fraction=0.03, pad=0.02)
-        cbar.outline.set_linewidth(0.5)
+        cbar.outline.linewidth = 0.5
         cbar.ax.tick_params(labelsize=9)
 
         axes[idx].set_xticks([0, width // 2, width])
@@ -163,18 +157,13 @@ def render_element_grid(matrix_3d: np.ndarray[any, np.dtype[np.float64]], elemen
         print(f"Figure saved to: {savename}")
     plt.show(block = False)
 
+def full_thing(folder_path, save_path, w=120, h=60):
+    cube, keys, w, h = process_image_data(folder_path, w, h)
+    render_element_grid(cube, keys, ELEMENT_MAP, w, h, save_path)
+    return cube, keys
 
+cube1, keys = full_thing("Resources/antico1-prova4-ruotato/10264", "rezultati/ruotato/elementi_mape_10264.png", 80, 45)
+cube2, _ = full_thing("Resources/antico1-prova4-ruotato/19511", "rezultati/ruotato/elementi_mape_19511.png", 80, 45)
 
-cube1, keys, w, h = process_image_data("Resources/aurora-antico1-prova1/10264", 120, 60)
-cube2, _, _, _    = process_image_data("Resources/aurora-antico1-prova1/19511", 120, 60)
-
-render_element_grid(cube1, keys, ELEMENT_MAP, width=w, height=h,
-                    savename="rezultati/dynamic_windowed/prov1_10264.png", figname="Scan 10264")
-
-render_element_grid(cube2, keys, ELEMENT_MAP, width=w, height=h,
-                    savename="rezultati/dynamic_windowed/prov2_19511.png", figname="Scan 19511")
-
-render_element_grid(cube1 - cube2, keys, ELEMENT_DIFF_MAP, width=w, height=h,
-                    savename="rezultati/dynamic_windowed/diff_10265-19511", figname="Difference 10264 - 19511")
-
-render_element_grid(cube1 + cube2 / 2, keys, ELEMENT_MAP, width=2, height=h, savename = "rezultati/dynamic_windowed/avg_prova1", figname = "AVG")
+render_element_grid(cube1 - cube2, keys, ELEMENT_DIFF_MAP, 80, 60, "rezultati/ruotato/diff_10264-19511.png")
+render_element_grid(cube1 + cube2, keys, ELEMENT_MAP, 80, 60, "rezultati/ruotato/avg.png")
