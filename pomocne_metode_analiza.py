@@ -166,12 +166,6 @@ def full_thing(folder_path, save_path, w=120, h=60):
     render_element_grid(cube, keys, ELEMENT_MAP, w, h, save_path)
     return cube, keys
 
-#prikaz 3 matrice rasirene svaka u svoju kolonu
-#treca ima specificna pravila skaliranja gde je skala gradijenta centrirana oko nule i interval je maksimalan za sve.
-def render_comparisons(strips: list[np.ndarray[Any, np.dtype[np.float64]]], element_keys, element_maps: list[ dict[str, dict[str, str | float]]],
-                       strip_names: list[str] | None,
-                       figname: str | None,
-                       savename: str | None):
     num_scans = len(strips)
     num_elements = len(element_keys)
 
@@ -179,9 +173,6 @@ def render_comparisons(strips: list[np.ndarray[Any, np.dtype[np.float64]]], elem
                              figsize=(4 * num_scans + 2, 3 * num_elements),
                              dpi=100, squeeze=False)
 
-    diff_low = abs(np.nanmin(strips[-1]))
-    diff_high = abs(np.nanmax(strips[-1]))
-    diff_lim = max(diff_low, diff_high)
 
     for row_idx, key in enumerate(element_keys):
         all_data_for_this_element = [s[row_idx] for s in strips[:-1]]
@@ -204,7 +195,6 @@ def render_comparisons(strips: list[np.ndarray[Any, np.dtype[np.float64]]], elem
 
             #todo remove hardcoded 2
             if col_idx ==  2:
-                abs_max = max(diff_lim, 0.00001)
                 vmin, vmax = -abs_max, abs_max
             else:
                 vmin, vmax = global_min, global_max
