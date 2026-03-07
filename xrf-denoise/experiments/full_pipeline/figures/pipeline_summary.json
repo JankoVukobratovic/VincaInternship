@@ -1,0 +1,99 @@
+{
+  "pipeline": "denoise_nmf_cvi_sam",
+  "grid": "60x120",
+  "cvi_mean": 0.41574832616373897,
+  "cvi_max": 0.9952836632728577,
+  "pct_elevated": 21.180555555555554,
+  "pct_critical": 1.9305555555555556,
+  "cvi_stats": {
+    "nizak": 3.6944444444444446,
+    "umeren": 75.125,
+    "povisen": 19.25,
+    "kritican": 1.9305555555555556
+  },
+  "time_seconds": 75.3,
+  "nmf_K": 6,
+  "n_sam_regions": 11,
+  "top_regions": [
+    {
+      "id": 9,
+      "area_pct": 1.0,
+      "cvi_mean": 0.728,
+      "cvi_max": 0.995,
+      "material": "Krecni malter (intonaco)",
+      "dominant_risk": "R1"
+    },
+    {
+      "id": 7,
+      "area_pct": 0.8,
+      "cvi_mean": 0.706,
+      "cvi_max": 0.948,
+      "material": "Krecni malter (intonaco)",
+      "dominant_risk": "R1"
+    },
+    {
+      "id": 5,
+      "area_pct": 4.3,
+      "cvi_mean": 0.477,
+      "cvi_max": 0.797,
+      "material": "Azurit (Cu-pigment)",
+      "dominant_risk": "R2"
+    },
+    {
+      "id": 11,
+      "area_pct": 4.0,
+      "cvi_mean": 0.474,
+      "cvi_max": 0.989,
+      "material": "Azurit (Cu-pigment)",
+      "dominant_risk": "R2"
+    },
+    {
+      "id": 8,
+      "area_pct": 1.2,
+      "cvi_mean": 0.436,
+      "cvi_max": 0.561,
+      "material": "Azurit (Cu-pigment)",
+      "dominant_risk": "R2"
+    },
+    {
+      "id": 1,
+      "area_pct": 32.7,
+      "cvi_mean": 0.414,
+      "cvi_max": 0.799,
+      "material": "Azurit (Cu-pigment)",
+      "dominant_risk": "R2"
+    },
+    {
+      "id": 13,
+      "area_pct": 2.8,
+      "cvi_mean": 0.409,
+      "cvi_max": 0.606,
+      "material": "Azurit (Cu-pigment)",
+      "dominant_risk": "R2"
+    },
+    {
+      "id": 2,
+      "area_pct": 28.4,
+      "cvi_mean": 0.407,
+      "cvi_max": 0.935,
+      "material": "Olovna bela (Pb-pigment)",
+      "dominant_risk": "R2"
+    },
+    {
+      "id": 3,
+      "area_pct": 24.8,
+      "cvi_mean": 0.386,
+      "cvi_max": 0.673,
+      "material": "Olovna bela (Pb-pigment)",
+      "dominant_risk": "R3"
+    },
+    {
+      "id": 10,
+      "area_pct": 0.0,
+      "cvi_mean": 0.369,
+      "cvi_max": 0.369,
+      "material": "Moderna restauracija (TiO2)",
+      "dominant_risk": "R1"
+    }
+  ]
+}

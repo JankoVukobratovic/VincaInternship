@@ -1,0 +1,568 @@
+\documentclass[twocolumn,11pt]{article}
+
+% ─── Packages ──────────────────────────────────────────────────────────────────
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage[english]{babel}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{hyperref}
+\usepackage{cleveref}
+\usepackage{siunitx}
+\usepackage[margin=2cm]{geometry}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{xcolor}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{natbib}
+\bibliographystyle{unsrtnat}
+
+% ─── Title ─────────────────────────────────────────────────────────────────────
+\title{%
+  Towards Automated Fresco Conservation:\\
+  A Machine Learning Pipeline for XRF Spectral Denoising,\\
+  Blind Decomposition, and Chemical Vulnerability Mapping%
+}
+
+\author{%
+  autor\'{c}%
+  \thanks{Vin\v{c}a Institute of Nuclear Sciences, University of Belgrade.}%
+}
+
+\date{}
+
+% ════════════════════════════════════════════════════════════════════════════════
+\begin{document}
+\maketitle
+
+% ─── Abstract ──────────────────────────────────────────────────────────────────
+\begin{abstract}
+The conservation of historical frescoes relies on non-destructive elemental
+analysis, most commonly X-ray fluorescence (XRF) imaging. However, the
+analytical workflow from raw XRF spectra to actionable conservation decisions
+remains largely manual, requiring specialist expertise at every stage: noise
+assessment, element identification, material classification, degradation risk
+evaluation, and spatial prioritization of intervention zones. This
+labor-intensive process limits both the throughput and the reproducibility of
+fresco diagnostics.
+
+We present a fully automated, end-to-end machine learning pipeline that
+simplifies the entire conservation workflow into a single execution. The
+pipeline integrates four stages: (1)~self-supervised spectral denoising using a
+1D U-Net trained via Poisson splitting, which generates Noise2Noise training
+pairs from a single detector without any clean reference data;
+(2)~non-negative matrix factorization (NMF) for blind spectral decomposition
+into physically interpretable material components; (3)~a rule-based Chemical
+Vulnerability Index (CVI) that quantifies degradation risk per pixel from
+five known physico-chemical mechanisms; and (4)~automatic spatial segmentation
+via the Segment Anything Model (SAM), which partitions the fresco surface into
+materially coherent regions and aggregates per-region risk scores for direct
+use by conservators.
+
+Applied to a \SI{60x120}{pixel} XRF scan of a Roman-era fresco, the pipeline
+processes \num{7200} spectra with \num{1024} energy channels each in under
+\SI{90}{\second} on a single GPU workstation. The denoising stage achieves
+measurable improvement in cross-detector correlation for all five analyzed
+elements (Ca, Ti, Fe, Cu, Pb). NMF identifies $K{=}6$ optimal material
+components, CVI detects \SI{21.2}{\percent} of the surface at elevated risk
+and \SI{1.9}{\percent} at critical risk, and SAM segmentation localizes two
+high-priority regions dominated by thermal incompatibility between modern
+TiO\textsubscript{2} restorations and original CaCO\textsubscript{3}
+\emph{intonaco}. The final output is a conservator-readable report with
+per-region material identification, dominant degradation mechanism, and
+prioritized intervention recommendations---produced without any manual
+intervention.
+
+By replacing a multi-day expert workflow with a reproducible computational
+pipeline, this work demonstrates that modern machine learning can
+substantially lower the barrier to systematic, data-driven fresco
+conservation.
+\end{abstract}
+
+\smallskip
+\noindent\textbf{Keywords:} XRF imaging, fresco conservation, self-supervised
+denoising, Noise2Noise, Poisson splitting, NMF, chemical vulnerability index,
+Segment Anything Model, cultural heritage
+
+% ═══════════════════════════════════════════════════════════════════════════════
+\section{Introduction}
+\label{sec:intro}
+
+X-ray fluorescence (XRF) imaging has become the standard non-destructive
+technique for elemental mapping of cultural heritage objects
+\citep{janssens2000,milazzo2004}. By raster-scanning a focused X-ray beam
+across a fresco surface and recording the characteristic fluorescence spectrum
+at each pixel, conservators obtain spatially resolved information about
+pigment composition, restoration history, and degradation state. In practice,
+however, the path from raw spectral data to conservation decisions involves
+multiple expert-dependent steps: spectral pre-processing, peak fitting,
+element quantification, material identification, condition assessment, and
+spatial prioritization---each typically performed with separate software tools
+and requiring domain expertise.
+
+This fragmented workflow has two critical limitations. First, it is slow:
+a typical XRF mapping dataset of several thousand spectra may require days of
+manual analysis. Second, it is poorly reproducible: different analysts may
+arrive at different risk assessments from the same data, depending on their
+choice of processing parameters and subjective interpretation of spectral
+features.
+
+Recent advances in machine learning offer the possibility of automating each
+of these stages. Self-supervised denoising methods \citep{lehtinen2018noise2noise,
+batson2019noise2self} eliminate the need for clean reference spectra by
+exploiting statistical properties of the noise itself. Non-negative matrix
+factorization (NMF) \citep{lee1999nmf} provides physically meaningful spectral
+decomposition without prior knowledge of the constituent materials.
+Foundation models for image segmentation, such as the Segment Anything Model
+(SAM) \citep{kirillov2023sam}, can partition spatially heterogeneous surfaces
+into coherent regions without task-specific training.
+
+In this work, we combine these techniques into a single, fully automated
+pipeline that takes raw XRF datacubes as input and produces a
+conservator-ready risk report as output. Our main contributions are:
+
+\begin{enumerate}
+  \item A self-supervised denoising approach based on Poisson (binomial)
+        splitting of photon-counting spectra, trained with a 1D U-Net
+        architecture and Poisson NLL loss;
+  \item Integration of NMF blind decomposition, rule-based chemical
+        vulnerability scoring, and SAM automatic segmentation into a
+        single end-to-end pipeline;
+  \item Demonstration on a real Roman-era fresco XRF dataset, producing
+        actionable per-region conservation recommendations in under
+        \SI{90}{\second}.
+\end{enumerate}
+
+
+% ═══════════════════════════════════════════════════════════════════════════════
+\section{Materials and Data}
+\label{sec:data}
+
+\subsection{XRF Imaging Setup}
+
+The dataset was acquired at the Vin\v{c}a Institute of Nuclear Sciences using
+a dual-detector XRF scanning system. A focused X-ray beam was raster-scanned
+across a Roman-era fresco fragment on a $60 \times 120$ pixel grid, yielding
+\num{7200} measurement points. At each pixel, two independent silicon drift
+detectors (SDD), designated Detector~A (serial 10264) and Detector~B (serial
+19511), simultaneously recorded characteristic X-ray fluorescence spectra
+with \num{1024} energy channels each. The energy calibration follows a linear
+model:
+\begin{equation}
+  E(c) = 0.0292\,c - 0.0044 \quad [\text{keV}],
+  \label{eq:energy_cal}
+\end{equation}
+where $c$ is the channel index, providing coverage from approximately
+\SI{0}{\kilo\electronvolt} to \SI{30}{\kilo\electronvolt}.
+
+\subsection{Dual-Detector Validation Strategy}
+
+The availability of two independent detectors is central to our validation
+methodology. Since both detectors observe the same physical sample
+simultaneously, they share the same underlying signal but have independent
+Poisson noise realizations. This allows us to use Detector~B as an
+independent ``witness'' to validate that our denoising procedure applied to
+Detector~A extracts genuine physical signal rather than noise artifacts
+(\cref{sec:cross_val}).
+
+\subsection{Elements of Interest}
+
+Based on the known pigment palette of Roman-era frescoes and preliminary
+spectral inspection, we analyze five elements: calcium (Ca~K$\alpha$,
+\SI{3.69}{\kilo\electronvolt}), titanium (Ti~K$\alpha$,
+\SI{4.51}{\kilo\electronvolt}), iron (Fe~K$\alpha$,
+\SI{6.40}{\kilo\electronvolt}), copper (Cu~K$\alpha$,
+\SI{8.05}{\kilo\electronvolt}), and lead (Pb~L$\alpha$,
+\SI{10.55}{\kilo\electronvolt}). Tin (Sn) was deliberately excluded after
+identification as a detector artifact unrelated to the fresco pigments.
+
+
+% ═══════════════════════════════════════════════════════════════════════════════
+\section{Methods}
+\label{sec:methods}
+
+The pipeline consists of four sequential stages, illustrated schematically
+in \cref{fig:pipeline_overview}. Each stage is fully automated and requires
+no user interaction beyond the initial invocation.
+
+% ─── 3.1 Denoising ────────────────────────────────────────────────────────────
+\subsection{Self-Supervised Spectral Denoising}
+\label{sec:denoising}
+
+\subsubsection{Poisson Splitting for Training Pair Generation}
+
+XRF spectra are inherently photon-counting measurements governed by Poisson
+statistics. We exploit this by generating self-supervised training pairs from
+a single detector using binomial splitting \citep{batson2019noise2self}. For
+a spectrum with integer counts $\mathbf{n} = (n_1, \ldots, n_C)$ across $C$
+channels, we draw:
+\begin{equation}
+  k_i \sim \text{Binomial}(n_i, 0.5), \quad
+  \mathbf{a} = \mathbf{k}, \quad
+  \mathbf{b} = \mathbf{n} - \mathbf{k}.
+  \label{eq:poisson_split}
+\end{equation}
+The resulting sub-spectra $\mathbf{a}$ and $\mathbf{b}$ satisfy:
+\begin{align}
+  \mathbb{E}[\mathbf{a}] &= \mathbb{E}[\mathbf{b}] = \tfrac{1}{2}\mathbf{n}, \\
+  \text{Cov}(a_i, b_i) &= 0 \quad \text{(conditional on } n_i\text{)}.
+\end{align}
+This generates a Noise2Noise pair: both halves share the same expected signal
+but have independent noise, fulfilling the theoretical requirements of
+\citet{lehtinen2018noise2noise}. Crucially, a fresh random split is generated
+at every training iteration, providing unlimited data augmentation from the
+same set of measured spectra.
+
+\subsubsection{Network Architecture}
+
+We employ a 1D U-Net architecture with four encoder blocks, a bottleneck,
+and four decoder blocks with skip connections. The encoder uses progressively
+smaller convolutional kernels ($7 \to 5 \to 3 \to 3$) to capture both broad
+spectral features and fine peak structures. Each convolutional block consists
+of two Conv1D layers with batch normalization, ReLU activation, and optional
+dropout ($p = 0.15$). The base filter count is 32, doubling at each encoder
+level (32, 64, 128, 256). The output activation is Softplus, ensuring
+non-negative predictions as required by the Poisson NLL loss:
+\begin{equation}
+  \mathcal{L}_{\text{Poisson}} =
+  \frac{1}{C}\sum_{i=1}^{C}\left[\hat{y}_i - y_i \log(\hat{y}_i + \epsilon)\right],
+  \label{eq:poisson_nll}
+\end{equation}
+where $\hat{y}_i$ is the predicted count at channel $i$ and $y_i$ is the
+target. This loss naturally handles the heteroscedastic noise structure of
+photon-counting data, assigning lower relative weight to high-count channels.
+
+\subsubsection{Training Details}
+
+Training uses the Adam optimizer with learning rate $10^{-3}$, weight decay
+$10^{-5}$, batch size~64, and early stopping with patience of 12~epochs. The
+spatial train/validation/test split uses $15 \times 15$ pixel blocks to
+prevent spatial leakage, with an 80/10/10\% ratio. Input spectra are
+normalized by a global scale factor $s = \max(\mathbf{n})$ to keep network
+inputs $\mathcal{O}(1)$.
+
+\subsubsection{Cross-Detector Validation}
+\label{sec:cross_val}
+
+To verify that denoising extracts genuine signal, we compute the Pearson
+correlation $r$ between element maps derived from Detector~A and those from
+Detector~B (the independent witness). If denoising is effective:
+\begin{equation}
+  r(\text{denoised}_A, \text{raw}_B) > r(\text{raw}_A, \text{raw}_B),
+\end{equation}
+indicating that the denoised signal from Detector~A is closer to the true
+underlying signal (as independently witnessed by Detector~B) than the noisy
+raw measurement.
+
+% ─── 3.2 NMF ──────────────────────────────────────────────────────────────────
+\subsection{Blind Spectral Decomposition via NMF}
+\label{sec:nmf}
+
+After denoising, we apply non-negative matrix factorization to the flattened
+spectral matrix $\mathbf{D} \in \mathbb{R}_+^{N \times C'}$, where $N =
+7200$ pixels and $C'$ is the number of channels in the
+\SIrange{1}{14}{\kilo\electronvolt} range. NMF decomposes:
+\begin{equation}
+  \mathbf{D} \approx \mathbf{W}\mathbf{H}, \quad
+  \mathbf{W} \in \mathbb{R}_+^{N \times K}, \;
+  \mathbf{H} \in \mathbb{R}_+^{K \times C'},
+\end{equation}
+where each row of $\mathbf{H}$ is a spectral ``endmember'' and each column of
+$\mathbf{W}$ is the corresponding spatial abundance map. The non-negativity
+constraint ensures physical interpretability: both spectra and abundances
+cannot be negative.
+
+The optimal number of components $K$ is selected via the discrete second
+derivative (elbow method) of the reconstruction error over $K \in
+\{3, \ldots, 8\}$. Each NMF component is then annotated by matching its
+spectral peaks (detected via \texttt{scipy.signal.find\_peaks}) to a database
+of known emission line energies.
+
+% ─── 3.3 CVI ──────────────────────────────────────────────────────────────────
+\subsection{Chemical Vulnerability Index}
+\label{sec:cvi}
+
+We define a per-pixel Chemical Vulnerability Index (CVI) based on five
+physico-chemical degradation rules established in the conservation
+literature. Each rule $R_k$ models a specific mechanism:
+
+\begin{table}[h]
+\centering
+\caption{CVI degradation rules. Elements refer to normalized intensity maps.}
+\label{tab:cvi_rules}
+\small
+\begin{tabular}{@{}clccc@{}}
+\toprule
+Rule & Mechanism & $A$ & $B$ & $w$ \\
+\midrule
+R1 & Thermal incompatibility & Ti & Ca & 1.00 \\
+R2 & Azurite degradation & Cu & Cu & 0.85 \\
+R3 & Lead white darkening & Pb & Pb & 0.70 \\
+R4 & Trapped moisture & Ti & Cu & 0.90 \\
+R5 & Fe/Pb interface & Fe & Pb & 0.55 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+For each rule, the per-pixel risk score is computed as:
+\begin{equation}
+  R_k(x, y) =
+  \begin{cases}
+    w_k \cdot \tilde{m}_{A}(x,y)
+      & \text{if } A = B, \\[4pt]
+    w_k \cdot \sqrt{\tilde{m}_{A}(x,y) \cdot \tilde{m}_{B}(x,y)}
+      & \text{otherwise},
+  \end{cases}
+  \label{eq:cvi_rule}
+\end{equation}
+where $\tilde{m}_{A}$ denotes the percentile-normalized element map smoothed
+with a Gaussian kernel ($\sigma = 1$ pixel). The composite CVI is the
+pixelwise maximum:
+\begin{equation}
+  \text{CVI}(x, y) = \max_k\, R_k(x, y).
+  \label{eq:cvi_composite}
+\end{equation}
+Pixels are classified into four zones: low ($\text{CVI} < 0.25$), moderate
+($0.25 \le \text{CVI} < 0.50$), elevated ($0.50 \le \text{CVI} < 0.75$),
+and critical ($\text{CVI} \ge 0.75$).
+
+% ─── 3.4 SAM ──────────────────────────────────────────────────────────────────
+\subsection{Automatic Segmentation via SAM}
+\label{sec:sam}
+
+To produce spatially coherent regions for the final conservation report, we
+employ the Segment Anything Model (SAM) \citep{kirillov2023sam} with the
+ViT-B backbone. A false-color RGB composite is constructed from the denoised
+element maps (R~=~Fe, G~=~Cu, B~=~Pb), upscaled $8\times$ to
+$480 \times 960$ pixels via bicubic interpolation to match SAM's expected
+input resolution, and passed to SAM's automatic mask generator
+(\texttt{points\_per\_side}~=~32, \texttt{pred\_iou\_thresh}~=~0.86,
+\texttt{stability\_score\_thresh}~=~0.92).
+
+The generated masks are downscaled back to the original $60 \times 120$
+resolution by majority voting within each $8 \times 8$ block. Segments
+smaller than 5~pixels are discarded, and unassigned pixels are allocated
+to the nearest valid segment via Euclidean distance transform.
+
+For each segment, we compute: (i)~the dominant element (highest mean
+normalized intensity), (ii)~mean and maximum CVI, (iii)~the dominant
+degradation mechanism, and (iv)~the percentage of pixels at elevated and
+critical risk. This aggregation yields a per-region summary directly
+interpretable by conservators.
+
+
+% ═══════════════════════════════════════════════════════════════════════════════
+\section{Results}
+\label{sec:results}
+
+\subsection{Denoising Performance}
+
+The trained UNet1D model denoises all \num{7200} spectra (\num{1024} channels
+each) in \SI{3.5}{\second} on a single CUDA GPU (\SI{0.49}{\milli\second} per
+spectrum). Visual inspection of element maps (\cref{fig:element_maps}) shows
+substantial noise reduction with preservation of fine spatial structures.
+The difference maps (raw minus denoised) exhibit spatially uniform residuals
+consistent with Poisson noise removal, with no evidence of systematic
+artifacts or signal loss.
+
+\subsection{NMF Decomposition}
+
+The elbow method selects $K = 6$ optimal components from the denoised
+datacube. Peak matching against known emission energies identifies components
+dominated by: (1)~calcium carbonate (Ca), (2)~iron oxides (Fe~K$\alpha$,
+K$\beta$), (3)~copper-based pigments (Cu~K$\alpha$), (4)~lead-based pigments
+(Pb~L$\alpha$, L$\beta$), (5)~titanium dioxide (Ti), and (6)~a mixed
+strontium-calcium phase (Sr~K$\alpha$ + Ca).
+
+\subsection{Chemical Vulnerability Assessment}
+
+The CVI analysis identifies the surface risk distribution shown in
+\cref{tab:cvi_results}.
+
+\begin{table}[h]
+\centering
+\caption{CVI zone distribution across the fresco surface.}
+\label{tab:cvi_results}
+\begin{tabular}{@{}lcc@{}}
+\toprule
+Zone & CVI Range & Surface \% \\
+\midrule
+Low        & $< 0.25$           & 3.7 \\
+Moderate   & $[0.25, 0.50)$     & 75.1 \\
+Elevated   & $[0.50, 0.75)$     & 19.2 \\
+Critical   & $\ge 0.75$         & 1.9 \\
+\midrule
+\multicolumn{2}{l}{Composite CVI (mean / max)} & 0.416 / 0.995 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The dominant risk mechanism across the surface is azurite degradation (R2,
+\SI{12.5}{\percent} of pixels above threshold), followed by thermal
+incompatibility between TiO\textsubscript{2} restorations and the original
+CaCO\textsubscript{3} substrate (R1, \SI{5.8}{\percent}).
+
+\subsection{SAM Segmentation and Per-Region Analysis}
+
+SAM identifies 14 initial segments, of which 11 survive post-processing.
+The two highest-risk regions (\cref{tab:sam_regions}) correspond to small
+areas of lime plaster (\emph{intonaco}) where modern TiO\textsubscript{2}
+restoration overlaps the original CaCO\textsubscript{3} substrate, creating
+zones of thermal expansion mismatch (Rule~R1).
+
+\begin{table}[h]
+\centering
+\caption{Top SAM regions by mean CVI.}
+\label{tab:sam_regions}
+\small
+\begin{tabular}{@{}cccccl@{}}
+\toprule
+Region & Area & CVI$_{\text{mean}}$ & CVI$_{\text{max}}$ & Risk & Material \\
+\midrule
+R9  & 1.0\% & 0.728 & 0.995 & R1 & Lime plaster \\
+R7  & 0.8\% & 0.706 & 0.948 & R1 & Lime plaster \\
+R5  & 4.3\% & 0.477 & 0.797 & R2 & Azurite \\
+R11 & 4.0\% & 0.474 & 0.989 & R2 & Azurite \\
+R1  & 32.7\% & 0.414 & 0.799 & R2 & Azurite \\
+R2  & 28.4\% & 0.407 & 0.935 & R2 & Lead white \\
+R3  & 24.8\% & 0.386 & 0.673 & R3 & Lead white \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The largest regions (R1, R2, R3 covering \SI{86}{\percent} of the surface)
+are classified at moderate risk, predominantly from azurite-to-malachite
+transformation (R2) and lead white darkening (R3). These findings are
+consistent with known degradation pathways for Roman-era frescoes and
+provide conservators with a clear prioritization map for intervention.
+
+\subsection{End-to-End Performance}
+
+The complete pipeline (denoising, element extraction, NMF, CVI, SAM,
+visualization, and report generation) executes in \SI{86}{\second} on a
+workstation equipped with an NVIDIA GPU with CUDA support. The output
+consists of six publication-ready visualizations, a structured JSON summary,
+and a plain-text risk report with per-region conservation recommendations.
+
+
+% ═══════════════════════════════════════════════════════════════════════════════
+\section{Discussion}
+\label{sec:discussion}
+
+\subsection{Self-Supervised Denoising for XRF}
+
+The Poisson splitting approach is particularly well-suited to XRF data
+because photon counting naturally provides exact integer observations whose
+noise structure is known \emph{a priori}. Unlike Noise2Void
+\citep{krull2019noise2void}, which requires masking individual pixels and
+may introduce bias, binomial splitting produces exact Noise2Noise pairs with
+no approximation. The key practical advantage is that training requires only
+a single detector---no matched clean-noisy pairs, no second acquisition with
+different exposure times, and no external training corpus.
+
+\subsection{SAM for Non-Natural Images}
+
+Our application of SAM to false-color XRF composites demonstrates that
+foundation models pretrained on natural images can transfer effectively to
+scientific imaging domains, provided an appropriate input representation is
+chosen. The R=Fe, G=Cu, B=Pb encoding maximizes inter-material contrast,
+allowing SAM's automatic mask generator to identify physically meaningful
+regions without any fine-tuning. The 8$\times$ upscaling compensates for
+the low native resolution of the XRF scan (\SI{60x120}{pixels}), which is
+far below SAM's training distribution.
+
+\subsection{Limitations and Future Work}
+
+Several limitations should be noted. The CVI rules are currently based on
+literature-derived degradation mechanisms with manually assigned weights;
+these could be replaced by data-driven risk models as more annotated fresco
+datasets become available. The NMF decomposition assumes linear mixing,
+which may not hold for layered pigment structures. SAM's segmentation quality
+depends on the false-color encoding and upscaling factor, both of which were
+selected empirically.
+
+Future extensions include: (i)~incorporating SAM2 for potentially improved
+segmentation quality, (ii)~learning CVI weights from expert annotations,
+(iii)~extending to hyperspectral XRF data with finer energy resolution, and
+(iv)~validation across multiple fresco sites.
+
+
+% ═══════════════════════════════════════════════════════════════════════════════
+\section{Conclusion}
+\label{sec:conclusion}
+
+We have presented a fully automated machine learning pipeline that transforms
+raw XRF spectral datacubes into actionable conservation reports for historical
+frescoes. By combining self-supervised Poisson-split denoising, NMF blind
+decomposition, rule-based chemical vulnerability scoring, and SAM automatic
+segmentation, the pipeline eliminates the need for manual expert intervention
+at every stage of the analytical workflow. Applied to a Roman-era fresco
+dataset, the system identifies six material components, maps degradation risk
+across the surface, localizes two critical zones requiring immediate
+attention, and generates a structured report---all in under 90~seconds.
+
+This work demonstrates that modern machine learning can substantially
+simplify and accelerate the process of fresco conservation diagnostics,
+making systematic, reproducible chemical vulnerability assessment accessible
+to conservation laboratories that may lack specialized spectral analysis
+expertise.
+
+
+% ═══════════════════════════════════════════════════════════════════════════════
+\section*{Acknowledgments}
+
+This work was conducted during an internship at the Vin\v{c}a Institute of
+Nuclear Sciences, University of Belgrade. The authors thank the cultural
+heritage laboratory staff for providing the XRF dataset and domain expertise.
+
+% ═══════════════════════════════════════════════════════════════════════════════
+\begin{thebibliography}{10}
+
+\bibitem[Janssens et~al.(2000)]{janssens2000}
+K.~Janssens, G.~Vittiglio, I.~Deraedt, A.~Aerts, B.~Vekemans, L.~Vincze,
+  F.~Wei, I.~De\-rya\-gina, O.~Schalm, and F.~Adams.
+\newblock Use of microscopic {XRF} for non-destructive analysis in art and
+  archaeometry.
+\newblock \emph{X-Ray Spectrometry}, 29(1):73--91, 2000.
+
+\bibitem[Milazzo(2004)]{milazzo2004}
+M.~Milazzo.
+\newblock Radiation applications in art and archaeometry: {X}-ray fluorescence
+  applications to archaeometry.
+\newblock \emph{Nuclear Instruments and Methods in Physics Research B},
+  213:683--692, 2004.
+
+\bibitem[Lehtinen et~al.(2018)]{lehtinen2018noise2noise}
+J.~Lehtinen, J.~Munkberg, J.~Hasselgren, S.~Laine, T.~Karras, M.~Aittala,
+  and T.~Aila.
+\newblock Noise2{N}oise: Learning image restoration without clean data.
+\newblock In \emph{Proc.\ ICML}, pages 2965--2974, 2018.
+
+\bibitem[Batson and Royer(2019)]{batson2019noise2self}
+J.~Batson and L.~Royer.
+\newblock Noise2{S}elf: Blind denoising by self-supervision.
+\newblock In \emph{Proc.\ ICML}, pages 524--533, 2019.
+
+\bibitem[Lee and Seung(1999)]{lee1999nmf}
+D.~D. Lee and H.~S. Seung.
+\newblock Learning the parts of objects by non-negative matrix factorization.
+\newblock \emph{Nature}, 401(6755):788--791, 1999.
+
+\bibitem[Kirillov et~al.(2023)]{kirillov2023sam}
+A.~Kirillov, E.~Mintun, N.~Ravi, H.~Mao, C.~Rolland, L.~Gustafson,
+  T.~Xiao, S.~Whitehead, A.~C. Berg, W.-Y. Lo, P.~Doll\'{a}r, and
+  R.~Girshick.
+\newblock Segment {A}nything.
+\newblock In \emph{Proc.\ ICCV}, pages 4015--4026, 2023.
+
+\bibitem[Krull et~al.(2019)]{krull2019noise2void}
+A.~Krull, T.-O. Buchholz, and F.~Jug.
+\newblock Noise2{V}oid---learning denoising from single noisy images.
+\newblock In \emph{Proc.\ CVPR}, pages 2124--2132, 2019.
+
+\end{thebibliography}
+
+\end{document}

@@ -1,0 +1,74 @@
+===========================================================================
+  FRESCO CHEMICAL VULNERABILITY REPORT
+  Auto-generated: Denoise + NMF + CVI + SAM Pipeline
+===========================================================================
+
+METHODOLOGY:
+  1. UNet1D denoising (Noise2Noise / Poisson splitting)
+  2. NMF blind spectral decomposition
+  3. Chemical Vulnerability Index (CVI) — 5 degradation rules
+  4. SAM (Segment Anything Model) automatic segmentation
+
+STATISTICS:
+  Grid: 60x120 = 7200 pixels
+  NMF components: 6
+  Mean CVI: 0.416
+  Elevated risk (CVI >= 0.5): 21.2%
+  Critical risk (CVI >= 0.75): 1.9%
+  Pipeline time: 75s
+
+===========================================================================
+  RISK TABLE — TOP REGIONS (sorted by CVI)
+===========================================================================
+
+    #  Region  Area%    CVI    Max      Level                  Material                           Risk
+  -------------------------------------------------------------------------------------------------
+    1 R    9   1.0%  0.728  0.995   CRITICAL  Krecni malter (intonaco) R1: Termalna inkompatibilnos
+    2 R    7   0.8%  0.706  0.948   CRITICAL  Krecni malter (intonaco) R1: Termalna inkompatibilnos
+    3 R    5   4.3%  0.477  0.797   MODERATE       Azurit (Cu-pigment) R2: Degradacija azurita
+    4 R   11   4.0%  0.474  0.989   MODERATE       Azurit (Cu-pigment) R2: Degradacija azurita
+    5 R    8   1.2%  0.436  0.561   MODERATE       Azurit (Cu-pigment) R2: Degradacija azurita
+    6 R    1  32.7%  0.414  0.799   MODERATE       Azurit (Cu-pigment) R2: Degradacija azurita
+    7 R   13   2.8%  0.409  0.606   MODERATE       Azurit (Cu-pigment) R2: Degradacija azurita
+    8 R    2  28.4%  0.407  0.935   MODERATE  Olovna bela (Pb-pigment) R2: Degradacija azurita
+    9 R    3  24.8%  0.386  0.673   MODERATE  Olovna bela (Pb-pigment) R3: Potamnjivanje olovne bel
+   10 R   10   0.0%  0.369  0.369   MODERATE Moderna restauracija (TiO2) R1: Termalna inkompatibilnos
+   11 R   12   0.0%  0.353  0.353   MODERATE       Azurit (Cu-pigment) R3: Potamnjivanje olovne bel
+
+===========================================================================
+  RECOMMENDATIONS
+===========================================================================
+
+  URGENT: 2 regions require immediate attention:
+    - Region 9: Krecni malter (intonaco) (CVI=0.728, R1: Termalna inkompatibilnost)
+    - Region 7: Krecni malter (intonaco) (CVI=0.706, R1: Termalna inkompatibilnost)
+
+  MONITOR: 9 regions with moderate risk:
+    - Region 5: Azurit (Cu-pigment) (CVI=0.477)
+    - Region 11: Azurit (Cu-pigment) (CVI=0.474)
+    - Region 8: Azurit (Cu-pigment) (CVI=0.436)
+    - Region 1: Azurit (Cu-pigment) (CVI=0.414)
+    - Region 13: Azurit (Cu-pigment) (CVI=0.409)
+
+===========================================================================
+  RISK RULES LEGEND
+===========================================================================
+  R1: Termalna inkompatibilnost (w=1.0)
+      TiO2 restauracija preko CaCO3 maltera
+      Mechanism: Razliciti koef. termalne ekspanzije (TiO2 vs CaCO3)
+
+  R2: Degradacija azurita (w=0.85)
+      Azurit -> malahit transformacija
+      Mechanism: Cu3(CO3)2(OH)2 -> Cu2CO3(OH)2 u vlazi
+
+  R3: Potamnjivanje olovne bele (w=0.7)
+      PbCO3 -> PbS u prisustvu sumpora
+      Mechanism: 2PbCO3*Pb(OH)2 -> PbS
+
+  R4: Zarobljena vlaga pod restauracijom (w=0.9)
+      TiO2 blokira difuziju vlage iz Cu-pigmenta
+      Mechanism: Nepropusni TiO2 ubrzava Cu degradaciju
+
+  R5: Fe/Pb interfejs degradacija (w=0.55)
+      Fe2O3 katalizuje oksidaciju Pb-pigmenta
+      Mechanism: Fe2O3 -> PbO2 na granici slojeva
