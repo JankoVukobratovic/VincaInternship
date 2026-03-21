@@ -9,6 +9,8 @@ from scipy.stats import linregress
 
 # Strictly White -> Color or Black -> Color
 ELEMENT_MAP = {
+
+
    #"S":  {"name": "Sulphur", "kev": 2.31, "cmap": "YlOrBr"}, # White-Yellow-Brown
     "Ca": {"name": "Kalcium Ca", "kev": 3.69, "cmap": "gray"},    # Black-White
     "Ti": {"name": "Titanium Ti", "kev": 4.51, "cmap": "hot"},     # Black-Red-White
@@ -20,6 +22,12 @@ ELEMENT_MAP = {
    #"Sn": {"name": "Tin", "kev": 25.27, "cmap": "Blues"}      # White-Blue
    # "Zn": {"name": "Zinc", "kev" : 8.5, "cmap": "RdPu"}
 }
+
+ELEMENT_MAP = {
+    "Hg" : {"name": "Ziva Hg", "kev": 9.9, "cmap": "Reds"}
+}
+
+
 
 ELEMENT_DIFF_MAP = {
     key: {
@@ -246,26 +254,10 @@ def render_comparisons(strips: list[np.ndarray[Any, np.dtype[np.float64]]], elem
 
 
 if __name__ == "__main__":
-    cube_prova1_10264, keys = full_thing("Resources/aurora-antico1-prova1/10264", "rezultati/prova1/10264.png")
-    cube_prova2_10264, _ = full_thing("Resources/aurora-antico1-prova2/10264", "rezultati/prova2/10264.png")
-    cube_prova1_19511, _ = full_thing("Resources/aurora-antico1-prova1/19511", "rezultati/prova1/19511.png")
-    cube_prova2_19511, _ = full_thing("Resources/aurora-antico1-prova2/19511", "rezultati/prova2/19511.png")
-
-    render_comparisons([cube_prova1_19511, cube_prova1_10264, cube_prova1_10264-cube_prova1_19511],
-                       keys,
-                       [ELEMENT_MAP, ELEMENT_MAP, ELEMENT_DIFF_MAP],
-                       savename = "rezultati/best_j/prova1_10264-19511",
-                       figname = "prova 1",
-                       strip_names= ["19511", "10264", "10265 - 19511"]
-                       )
-
-    render_comparisons([cube_prova2_19511, cube_prova2_10264, cube_prova2_10264-cube_prova2_19511],
-                       keys,
-                       [ELEMENT_MAP, ELEMENT_MAP, ELEMENT_DIFF_MAP],
-                       savename = "rezultati/best_j/prova2_10264-19511",
-                       figname = "prova 2",
-                       strip_names= ["19511", "10264", "10265 - 19511"]
-                       )
+    cube_prova1_10264, keys = full_thing("../Resources/aurora-antico1-prova1/10264", "rezultati/prova1/10264.png")
+    cube_prova2_10264, _ = full_thing("../Resources/aurora-antico1-prova2/10264", "rezultati/prova2/10264.png")
+    cube_prova1_19511, _ = full_thing("../Resources/aurora-antico1-prova1/19511", "rezultati/prova1/19511.png")
+    cube_prova2_19511, _ = full_thing("../Resources/aurora-antico1-prova2/19511", "rezultati/prova2/19511.png")
 
     render_comparisons([cube_prova1_19511, cube_prova2_19511, cube_prova1_19511-cube_prova2_19511],
                        keys,

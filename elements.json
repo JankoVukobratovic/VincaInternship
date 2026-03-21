@@ -1,0 +1,37 @@
+{
+  "_comment": "XRF element definitions. Each entry defines a spectral line to integrate.",
+  "_fields": {
+    "name":    "Display label on maps and plots",
+    "kev":     "Peak center energy in keV",
+    "hw":      "Half-window width in keV for fixed-window integrator (ignored by dynamic integrator)",
+    "color":   "Hex color for colormap (black -> color gradient) and spectral line annotations",
+    "display_group": "Optional. Elements in the same group are summed into one display channel. E.g. all 'Pb' lines -> combined Pb map"
+  },
+
+  "K":    { "name": "K Kα",    "kev": 3.3138, "hw": 0.15, "color": "#FFD700", "_note": "Uses tight-sideband integrator regardless of integrator setting" },
+  "Ca":   { "name": "Ca Kα",   "kev": 3.69,   "hw": 0.30, "color": "#FFFFFF" },
+  "Ti":   { "name": "Ti Kα",   "kev": 4.51,   "hw": 0.30, "color": "#FF9966" },
+  "Fe":   { "name": "Fe Kα",   "kev": 6.40,   "hw": 0.30, "color": "#FF2200" },
+  "Cu":   { "name": "Cu Kα",   "kev": 8.04,   "hw": 0.30, "color": "#00FFAA" },
+  "Zn":   { "name": "Zn Kα",   "kev": 8.64,   "hw": 0.20, "color": "#66CCFF", "_note": "hw kept narrow (0.20) to avoid Cu Kbeta at 8.903 keV" },
+  "PbLl": { "name": "Pb Ll",   "kev": 9.185,  "hw": 0.28, "color": "#BB88FF", "display_group": "Pb" },
+  "PbLa":   { "name": "Pb Lα",   "kev": 10.54,  "hw": 0.30, "color": "#FF8800", "display_group": "Pb"},
+  "PbLb":   { "name": "Pb Lβ",   "kev": 12.61,  "hw": 0.30, "color": "#CC66FF", "display_group": "Pb" },
+  "PbLg": { "name": "Pb Lγ",   "kev": 14.77,  "hw": 0.35, "color": "#9933AA", "display_group": "Pb" },
+
+  "_annotation_lines": [
+    { "label": "K",       "kev": 3.314, "color": "#FFD700" },
+    { "label": "Ca",      "kev": 3.69,  "color": "#BBBBBB" },
+    { "label": "Ti",      "kev": 4.51,  "color": "#FF9966" },
+    { "label": "Mn?",     "kev": 5.90,  "color": "#884400" },
+    { "label": "Fe",      "kev": 6.40,  "color": "#FF2200" },
+    { "label": "Co",      "kev": 6.93,  "color": "#0099FF" },
+    { "label": "Ni",      "kev": 7.47,  "color": "#FF44FF" },
+    { "label": "Cu",      "kev": 8.05,  "color": "#00FFAA" },
+    { "label": "Zn",      "kev": 8.64,  "color": "#66CCFF" },
+    { "label" :"Pb Ll",   "kev": 9.185, "color": "#FF8800"},
+    { "label": "Pb Lα",   "kev": 10.54, "color": "#FF8800" },
+    { "label": "Pb Lβ",   "kev": 12.61, "color": "#CC66FF" },
+    { "label": "Pb Lγ",   "kev": 14.77, "color": "#9944AA" }
+  ]
+}

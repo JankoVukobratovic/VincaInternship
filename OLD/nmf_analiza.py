@@ -42,7 +42,7 @@ _DATASET_MAP  = {
 DATASET_DIR, COLS, ROWS = _DATASET_MAP.get(DATASET_LABEL, (DATASET_LABEL, 120, 60))
 DETEKTORI = ['10264', '19511']
 
-IZLAZ = os.path.join('rezultati', DATASET_LABEL, 'nmf')
+IZLAZ = os.path.join('../rezultati', DATASET_LABEL, 'nmf')
 os.makedirs(IZLAZ, exist_ok=True)
 
 # ─── Kalibracija: kanal -> keV ───────────────────────────────────────────────
@@ -361,7 +361,7 @@ axes[0].axis('off')
 
 # Poredenje sa rucnim Fe/Cu/Pb RGB
 from scipy.ndimage import gaussian_filter
-npy_dir = os.path.join('rezultati', '_npy_cache', DATASET_LABEL)
+npy_dir = os.path.join('../rezultati', '_npy_cache', DATASET_LABEL)
 try:
     fe_map = (np.load(os.path.join(npy_dir, '10264_Fe.npy')) +
               np.load(os.path.join(npy_dir, '19511_Fe.npy'))) / 2.0
