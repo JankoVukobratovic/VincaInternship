@@ -1,5 +1,33 @@
+# Raw scan data (large, regenerate from source)
 /Resources/
-/Resources/antico1-prova4-ruotato/
-/Resources/aurora-antico1-prova1/
-/Resources/aurora-antico1-prova2/
+
+# Local model checkpoints
+/models/
 *.pth
+*.pt
+
+# Per-pixel spectrum plot dumps (large, regenerate)
+/signals_prova1/
+/signals_prova2/
+
+# Numpy caches and processed arrays
+*.npy
+**/_npy_cache/
+
+# Archives
+*.zip
+
+# OS / IDE junk
+.DS_Store
+.idea/
+.vscode/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ipynb_checkpoints/

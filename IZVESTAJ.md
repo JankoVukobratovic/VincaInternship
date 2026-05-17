@@ -1,44 +1,31 @@
 # XRF Analiza — Aurora Antico 1: Kompletan Izvestaj
 
-**Datum:** Mart 2026
+**Datum analize:** Mart 2026
 **Datasets:** prova1, prova2, ruotato
 **Detektori:** 10264, 19511
-**Skripte:** `analiza_korigovana.py`, `analiza_ruotato.py`, `mapa_kalaj.py`
+**Skripte:** `src/xrf_core.py` (engine), `scripts/01_run_analysis.py`, `scripts/02_vulnerability.py`, `scripts/03_sam_segmentation.py`, `scripts/compare_Ti.py`, `scripts/generate_signals.py`
+
+> Ovaj dokument je naucni izvestaj analize. Trenutna struktura repoa (folderi, imena skripti)
+> opisana je u `README.md`. Stari nazivi `rezultati_korigovani/` i `rezultati_ruotato/`
+> preimenovani su u `results/` i `results_rotated/`.
 
 ---
 
-## 1. Struktura Projekta
+## 1. Struktura Projekta (u vreme analize)
 
-```
-VincaInternship/
-├── aurora-antico1-prova1/      # Sirovi MCA podaci: 120×60 = 7200 piksela, dwell=3s
-│   ├── 10264/None_1.mca ... None_7200.mca
-│   └── 19511/None_1.mca ... None_7200.mca
-├── aurora-antico1-prova2/      # Isti objekat, ponavljanje skeniranja
-│   ├── 10264/ ...
-│   └── 19511/ ...
-├── aurora-antico1-ruotato/     # Zarotiran sken: 80×45 = 3600 piksela, dwell=3s
-│   ├── 10264/ ...
-│   └── 19511/ ...
-├── stacked/                    # Stacked MCA fajlovi (REAL_TIME=6s), 3600 fajlova
-│
-├── analiza_korigovana.py       # Glavna analiza za prova1 i prova2
-├── analiza_ruotato.py          # Analiza za ruotato dataset
-├── mapa_kalaj.py               # Analiza Sn (kalaj, 25.27 keV)
-├── generate_prova1_signals.py  # Generator spektarnih plota po pikselu
-│
-├── rezultati_korigovani/       # Korigovane mape elemenata za prova1/prova2
-│   ├── prova1/elementi_10264.png, elementi_19511.png
-│   ├── prova2/elementi_10264.png, elementi_19511.png
-│   ├── razlike_prova1_vs_prova2/diff_10264.png, diff_19511.png
-│   └── sn_mape/sn_prova1.png, sn_prova2.png, sn_diff.png
-└── rezultati_ruotato/          # Mape za ruotato
-    ├── elementi_10264.png
-    ├── elementi_19511.png
-    ├── elementi_suma_det.png
-    ├── diff_detektora.png
-    └── spektri/stacked_10264.png, stacked_19511.png
-```
+Sirovi MCA podaci (gitignored, lokalno u `Resources/`):
+
+- `aurora-antico1-prova1/` — 120×60 = 7200 piksela, dwell=3s, detektori 10264 i 19511
+- `aurora-antico1-prova2/` — isti objekat, ponavljanje skeniranja
+- `aurora-antico1-ruotato/` — zarotiran sken, 80×45 = 3600 piksela
+- `stacked/` — stacked MCA fajlovi (REAL_TIME=6s), 3600 fajlova
+
+Generisane mape sacuvane su u:
+
+- `results/` — mape elemenata za prova1/prova2 + razlike + Sn mape
+- `results_rotated/` — mape za ruotato (ukljucuje PbLl, PbLg)
+
+Za detalje o aktuelnoj strukturi i skriptama vidi `README.md`.
 
 ---
 
@@ -270,7 +257,7 @@ Tehnoloskim razlogom — prova1/prova2 analiza je dizajnirana pre detaljnog preg
 - Signal na 25.27 keV je na granici detekcije (~10-29 counts vs ~15 pozadina)
 - Prostorna konzistentnost izmedju prova1 i prova2 sugeriše marginalnu realnost signala
 - SNR je nedovoljan za pouzdanu kvantitativnu mapu
-- **Mape generisane i sacuvane u `rezultati_korigovani/sn_mape/`**
+- **Mape generisane i sacuvane u `results/sn_mape/`** *(istorijski naziv: `rezultati_korigovani/sn_mape/`)*
 
 ---
 
@@ -312,7 +299,7 @@ Svi elementi su konzistentni (±5-18%). Lagano veci Fe u ruotato moze biti posle
 ## 7. Razlike Mapa: Prova1 − Prova2 (Razlike Detektora)
 
 ### 7.1 Razlike Prova1 vs Prova2 (isti detektor)
-Slike u `rezultati_korigovani/razlike_prova1_vs_prova2/`:
+Slike u `results/razlike_prova1_vs_prova2/`:
 - **Crveno** = veci signal u prova1
 - **Plavo** = veci signal u prova2
 - **Belo/sivo** = jednak signal
@@ -320,7 +307,7 @@ Slike u `rezultati_korigovani/razlike_prova1_vs_prova2/`:
 Za Ca, Fe, Pb, Cu, Zn: razlike su statisticki zanemarive (r>0.98), mapa izgleda blizu uniformno sivom (beli sum). Ovo je **ocekivano** za dva skeniranja istog objekta.
 
 ### 7.2 Razlike Izmedju Detektora (ruotato)
-Slika `rezultati_ruotato/diff_detektora.png`:
+Slika `results_rotated/diff_detektora.png`:
 - Razlike su sistematske i odražavaju razlicitu osetljivost po energiji
 - Det 10264 uvek visi za S, Ca, Ti; det 19511 uvek visi za Pb, PbLg
 - Ovo je instrumentalni artefakt, ne prostorna varijacija uzorka
@@ -329,7 +316,7 @@ Slika `rezultati_ruotato/diff_detektora.png`:
 
 ## 8. Kompletni Skup Generisanih Slika
 
-### `rezultati_korigovani/`
+### `results/` (istorijski: `rezultati_korigovani/`)
 | Slika | Sadrzaj |
 |-------|---------|
 | `prova1/elementi_10264.png` | 9 mapa elemenata, detektor 10264, prova1 skeniranje |
@@ -344,7 +331,7 @@ Slika `rezultati_ruotato/diff_detektora.png`:
 
 Skala boja: **crna = 0 (nema elementa), zasicena boja = max signal**. Svaka mapa normalizovana na 99. percentil da se eliminisu sporadicni outlieri.
 
-### `rezultati_ruotato/`
+### `results_rotated/` (istorijski: `rezultati_ruotato/`)
 | Slika | Sadrzaj |
 |-------|---------|
 | `elementi_10264.png` | 10 mapa elemenata (ukljucuje PbLl, PbLg), det 10264 |
@@ -413,8 +400,17 @@ Na osnovu svih analiza, u uzorku su potvrdjeni sledeci elementi:
 
 7. **Validacija cross-dataset:** Prova1 vs prova2 vs ruotato — konzistentni elementi, konzistentni ratio-i, konzistentna osetljivost detektora. Potvrdjeno: svi tri skeniranja su isti objekat.
 
-8. **Reorganizacija projekta:** Ruotato data premestena u `aurora-antico1-ruotato/`. Obrisano: `main.py`, `better_main.py`, `razlika_po_detektoru.py`, `restauracija.py`, `analiza_novi.py`, `map.png`, `rezultati/`, `rezultati_novi/`, `prova1_signal/`.
+8. **Reorganizacija projekta (prva faza):** Ruotato data premestena u `aurora-antico1-ruotato/`. Obrisano: `main.py`, `better_main.py`, `razlika_po_detektoru.py`, `restauracija.py`, `analiza_novi.py`, `map.png`, `rezultati/`, `rezultati_novi/`, `prova1_signal/`.
+
+9. **Konsolidacija u monolith:** Sve analiticke skripte (`analiza_korigovana.py`, `analiza_ruotato.py`, `analiza_outlier.py`, `nmf_analiza.py`, `pomocne_metode_analiza.py`) objedinjene u jedan `analiza_core.py` sa `run_scan()` API-jem. Definicije elemenata izdvojene u `elements.json`.
+
+10. **Faza 2 — Vulnerability mapping** (`vulnerability_mapping.py`): NMF dekompozicija pigmentnih komponenti + Chemical Vulnerability Index (CVI) baziran na ko-lokaciji inkompatibilnih materijala (Ti/Ca, Cu degradacija, Pb potamnjivanje, itd.).
+
+11. **Faza 3 — SAM segmentacija** (`SAM/sam_pipeline.py`): Meta Segment Anything Model za automatsku segmentaciju freske + per-region CVI analiza.
+
+12. **Reorganizacija za GitHub:** `analiza_core.py` → `src/xrf_core.py`, `elements.json` → `src/elements.json`. Pokretacke skripte u `scripts/01_run_analysis.py`, `02_vulnerability.py`, `03_sam_segmentation.py`, `compare_Ti.py`, `generate_signals.py`. Output folderi preimenovani: `rezultati/` → `results/`, `rezultati_ruotato/` → `results_rotated/`. Veliki binarni fajlovi (.npy, .pt, .pth) i sirovi MCA podaci dodati u `.gitignore`.
 
 ---
 
-*Izvestaj generisan automatski na osnovu numericke analize svih NPY cache fajlova i skripti.*
+*Izvestaj generisan na osnovu numericke analize svih NPY cache fajlova i skripti.
+Tehnicke detalje aktuelne strukture repoa vidi u `README.md`.*
