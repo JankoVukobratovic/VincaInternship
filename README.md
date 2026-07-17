@@ -13,18 +13,18 @@ X-ray fluorescence spectrum at every point. This repository turns those
 raw spectra into a conservator-facing risk assessment, fully
 automatically and with no expert-labeled training data:
 
-1. **Self-supervised denoising** — a 1D U-Net trained with Poisson
+1. **Self-supervised denoising** - a 1D U-Net trained with Poisson
    splitting (no clean targets needed) suppresses photon-counting noise.
-2. **Elemental extraction** — per-pixel net peak intensities
+2. **Elemental extraction** - per-pixel net peak intensities
    (background-subtracted, spectral-overlap-corrected) become 2-D
    element maps (Ca, Ti, Fe, Cu, Pb, …).
-3. **NMF corroboration** — blind non-negative matrix factorization
+3. **NMF corroboration** - blind non-negative matrix factorization
    independently recovers the same material layers, validating the
    physics-based extraction.
-4. **Chemical Vulnerability Index (CVI)** — a literature-grounded
+4. **Chemical Vulnerability Index (CVI)** - a literature-grounded
    composite index aggregates five published degradation mechanisms over
    the element maps and classifies every pixel into four risk zones.
-5. **SAM segmentation** — Meta's Segment Anything Model partitions the
+5. **SAM segmentation** - Meta's Segment Anything Model partitions the
    painting into coherent regions; per-region mean CVI and dominant
    degradation mechanism produce an actionable conservation report.
 
@@ -67,8 +67,8 @@ VincaInternship/
 ├── results/                        # outputs for prova1/prova2 (PNG + npy cache)
 ├── results_rotated/                # outputs for the rotated scan
 │
-├── Resources/                      # RAW MCA DATA — gitignored, see Setup
-├── models/                         # SAM checkpoint — gitignored, see Setup
+├── Resources/                      # RAW MCA DATA - gitignored, see Setup
+├── models/                         # SAM checkpoint - gitignored, see Setup
 │
 └── xrf-denoise/                    # U-Net denoising subproject
     └── scripts/05_full_pipeline.py # denoise → maps → NMF → CVI → SAM → report
@@ -101,7 +101,7 @@ Resources/
     └── 19511/None_1.mca … None_3600.mca
 ```
 
-The raw data are not tracked in git (≈54 000 files, ≈400 MB) — download
+The raw data are not tracked in git (≈54 000 files, ≈400 MB) - download
 them from the repository's **Releases** page and unpack into `Resources/`:
 
 ```bash
@@ -128,7 +128,7 @@ curl -L -o models/sam_vit_b_01ec64.pth \
 ### 4. U-Net checkpoint (only for `xrf-denoise/scripts/05_full_pipeline.py`)
 
 The trained denoiser ships with the repository
-(`xrf-denoise/experiments/A_scratch/checkpoints/best_model.pt`, 6.4 MB) —
+(`xrf-denoise/experiments/A_scratch/checkpoints/best_model.pt`, 6.4 MB) -
 no action needed. Retrain with the `xrf-denoise` scripts if desired.
 
 ---
@@ -214,7 +214,7 @@ normalised maps (single-element rules use `w_k · A_k`), smoothed with a
 - Composite CVI stability across scans: **W₁ ≈ 0.003–0.005**,
   pixel-wise **r ≈ 0.99**, **SSIM ≈ 0.98**.
 - Zone coverage (prova1): ~14–16 % low, ~50 % moderate, ~28–30 %
-  elevated, **~6 % critical** — dominated by R2 (Cu green pigment) and
+  elevated, **~6 % critical** - dominated by R2 (Cu green pigment) and
   R3 (lead white darkening).
 - SAM identifies **13 coherent regions**; Cu- and Pb-rich regions
   concentrate the elevated/critical risk.
