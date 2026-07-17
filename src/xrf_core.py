@@ -1,25 +1,17 @@
 """
 xrf_core.py
-
-#tldr skripte: sve sto je ranije bilo strpano u jedan
-# + element mape su svoj .json da bude cistije
-# ako zelite toon da ustedimo na tokenima lmk
-
-# Ako dodajete novi element, samo u json
-# npr.
-#
-# "Mn": { "name": "Mn Kα", "kev": 5.895, "hw": 0.30, "color": "#884400" }
-# i trebalo bi da radi
-
-# neki elementi imaju special treatment
-
-
 ══════════════════════════════════════════════════════════════════════
 Unified XRF analysis engine.
 
-All logic from analiza_korigovana.py, analiza_ruotato.py,
-analiza_outlier.py and pomocne_metode_analiza.py is consolidated here.
-Element definitions are loaded from elements.json.
+Element definitions live in elements.json — to add a new element, add
+one JSON entry, e.g.
+
+    "Mn": { "name": "Mn Kα", "kev": 5.895, "hw": 0.30, "color": "#884400" }
+
+and it will be integrated, cached and rendered automatically. Elements
+sharing a "display_group" (e.g. all Pb L-lines) are summed into a single
+combined map for display. A few elements receive special treatment
+(K uses a tight-sideband integrator; Zn and S get overlap corrections).
 
 PUBLIC API
 ──────────
@@ -94,7 +86,7 @@ def load_elements(path: str = _DEFAULT_ELEMENTS_JSON) -> dict:
     are filtered out. Each value is guaranteed to have at least:
         name, kev, hw, color
     """
-    with open(path) as f:
+    with open(path, encoding="utf-8") as f:
         raw = json.load(f)
 
     elements = {
@@ -114,7 +106,7 @@ def load_elements(path: str = _DEFAULT_ELEMENTS_JSON) -> dict:
 
 def load_annotation_lines(path: str = _DEFAULT_ELEMENTS_JSON) -> list[dict]:
     """Return the _annotation_lines list from the JSON, or [] if absent."""
-    with open(path) as f:
+    with open(path, encoding="utf-8") as f:
         raw = json.load(f)
     return raw.get("_annotation_lines", [])
 
@@ -324,17 +316,19 @@ def process_folder(
         for k in el_keys
     }
     if all(os.path.exists(p) for p in cache_paths.values()):
-        print(f"  [{label}] Loading from cache…")
+        print(f"  [{label}] Loading from cache...")
         cube = np.stack([np.load(cache_paths[k]) for k in el_keys], axis=0)
         return cube, el_keys
 
     cube   = np.zeros((len(el_keys), height, width), dtype=np.float64)
     _ecache: dict[int, np.ndarray] = {}   # energy axis cache by n_channels
+    n_read = 0
 
     for i in range(1, total + 1):
         path = os.path.join(folder, f"None_{i}.mca")
         if not os.path.exists(path):
             continue
+        n_read += 1
 
         data   = parse_mca_file(path)
         counts = data["counts"]
@@ -351,6 +345,14 @@ def process_folder(
 
         if i % 500 == 0 or i == total:
             print(f"  [{label}] {i}/{total}  ({100 * i // total}%)")
+
+    if n_read == 0:
+        # Never cache an all-zero cube — that silently poisons every
+        # downstream script the next time it loads "from cache".
+        raise FileNotFoundError(
+            f"[{label}] no MCA files found in '{folder}' — check that the "
+            "raw data are in place (see README: Setup / Raw MCA data)"
+        )
 
     for ei, k in enumerate(el_keys):
         np.save(cache_paths[k], cube[ei])
@@ -383,9 +385,10 @@ def apply_corrections(cube: np.ndarray, el_keys: list[str], label: str = "") -> 
         )
 
     # ── S − Pb Mα ────────────────────────────────────────────
-    if "S" in ku and "Pb" in ku:
+    pb_lb_key = "PbLb" if "PbLb" in ku else ("Pb" if "Pb" in ku else None)
+    if "S" in ku and pb_lb_key:
         s_flat  = cube[ku["S"]].flatten()
-        pb_flat = cube[ku["Pb"]].flatten()
+        pb_flat = cube[ku[pb_lb_key]].flatten()
 
         # Estimate ratio from pixels where S signal is lowest
         mask = s_flat <= np.percentile(s_flat, 25)
@@ -397,54 +400,73 @@ def apply_corrections(cube: np.ndarray, el_keys: list[str], label: str = "") -> 
             ratio_s = 0.005
             print(f"  [{label}] Pb Mα/Lβ = default: {ratio_s:.4f}")
 
-        cube[ku["S"]] = np.maximum(0, cube[ku["S"]] - ratio_s * cube[ku["Pb"]])
+        cube[ku["S"]] = np.maximum(0, cube[ku["S"]] - ratio_s * cube[ku[pb_lb_key]])
 
     return cube
 
 
 def build_display_cube(
-    cube:    np.ndarray,
-    el_keys: list[str],
-    label:   str = "",
+    cube:     np.ndarray,
+    el_keys:  list[str],
+    elements: dict,
+    label:    str = "",
 ) -> tuple[np.ndarray, list[str]]:
     """
-    Collapse the raw processing cube (N channels) into a display cube (9 channels):
+    Collapse the raw processing cube into a display cube:
 
-        S, K, Ca, Ti, Fe, Cu, Zn  →  passthrough (already corrected)
-        Pb                         →  sum of PbLl + As-window + Pb + PbLg
-        As                         →  As-window minus estimated Pb Lα contribution
+        elements without a display_group  →  passthrough (already corrected)
+        elements sharing a display_group  →  summed into one combined channel
+                                             named after the group (e.g. all
+                                             Pb L-lines → "Pb")
+        "As" (if a dedicated window exists) →  As-window minus the estimated
+                                             Pb Lα contribution
 
     The Pb Lα/Lβ ratio for the As correction is estimated from the data
-    using pixels where As-window signal is lowest (likely pure-Pb pixels).
-    Falls back to PB_LA_LB_RATIO_0 if the data are insufficient.
+    using pixels where the As-window signal is lowest (likely pure-Pb
+    pixels). Falls back to _PB_LA_LB_RATIO_0 if the data are insufficient.
     """
     ku = {k: i for i, k in enumerate(el_keys)}
 
-    # Combined Pb: all four Pb lines
-    pb_combined = sum(
-        cube[ku[k]] for k in ["PbLl", "As", "Pb", "PbLg"]
-        if k in ku
-    )
+    # group name -> member keys, in el_keys order
+    groups: dict[str, list[str]] = {}
+    for k in el_keys:
+        g = elements.get(k, {}).get("display_group")
+        if g:
+            groups.setdefault(g, []).append(k)
+    grouped = {m for members in groups.values() for m in members}
 
-    # Corrected As channel
-    as_raw = cube[ku["As"]]  if "As"  in ku else np.zeros_like(cube[0])
-    pb_lb  = cube[ku["Pb"]]  if "Pb"  in ku else np.zeros_like(cube[0])
+    disp, disp_keys = [], []
 
-    as_f, pb_f = as_raw.flatten(), pb_lb.flatten()
-    mask = as_f <= np.percentile(as_f, 25)
-    if mask.sum() > 30 and pb_f[mask].std() > 1:
-        s, _, r, *_ = linregress(pb_f[mask], as_f[mask])
-        ratio = max(0.5, min(2.5, s))
-        print(f"  [{label}] As: Pb Lα/Lβ ratio = {ratio:.3f}  (r={r:.3f})")
-    else:
-        ratio = _PB_LA_LB_RATIO_0
-        print(f"  [{label}] As: Pb Lα/Lβ ratio = default ({ratio:.2f})")
-    as_corr = np.maximum(0, as_raw - ratio * pb_lb)
+    # Passthrough channels (keep acquisition order; As handled separately)
+    for k in el_keys:
+        if k in grouped or k == "As":
+            continue
+        disp.append(cube[ku[k]])
+        disp_keys.append(k)
 
-    passthrough = ["S", "K", "Ca", "Ti", "Fe", "Cu", "Zn"]
-    disp_keys   = passthrough + ["Pb", "As"]
-    disp        = [cube[ku[k]] for k in passthrough if k in ku]
-    disp       += [pb_combined, as_corr]
+    # Combined group channels
+    for g, members in groups.items():
+        disp.append(sum(cube[ku[m]] for m in members))
+        disp_keys.append(g)
+        print(f"  [{label}] {g} = combined {' + '.join(members)}")
+
+    # Corrected As channel — only when an explicit As window was integrated
+    if "As" in ku:
+        as_raw    = cube[ku["As"]]
+        pb_lb_key = "PbLb" if "PbLb" in ku else ("Pb" if "Pb" in ku else None)
+        pb_lb     = cube[ku[pb_lb_key]] if pb_lb_key else np.zeros_like(cube[0])
+
+        as_f, pb_f = as_raw.flatten(), pb_lb.flatten()
+        mask = as_f <= np.percentile(as_f, 25)
+        if mask.sum() > 30 and pb_f[mask].std() > 1:
+            s, _, r, *_ = linregress(pb_f[mask], as_f[mask])
+            ratio = max(0.5, min(2.5, s))
+            print(f"  [{label}] As: Pb Lα/Lβ ratio = {ratio:.3f}  (r={r:.3f})")
+        else:
+            ratio = _PB_LA_LB_RATIO_0
+            print(f"  [{label}] As: Pb Lα/Lβ ratio = default ({ratio:.2f})")
+        disp.append(np.maximum(0, as_raw - ratio * pb_lb))
+        disp_keys.append("As")
 
     return np.stack(disp, axis=0), disp_keys
 
@@ -486,7 +508,7 @@ def _imshow_ax(
     ax, img: np.ndarray, cmap, is_diff: bool, w: int, h: int,
     title: str, cbar_label: str
 ):
-    """Helper: imshow + colorbar on a single axes."""
+    """Helper: imshow + attached colorbar on a single axes (square pixels)."""
     if is_diff:
         am = np.percentile(np.abs(img), 99) or 1.0
         vmin, vmax = -am, am
@@ -494,15 +516,16 @@ def _imshow_ax(
         vmin = 0
         vmax = np.percentile(img, 99) or 1.0
 
-    im = ax.imshow(img, cmap=cmap, aspect="auto", origin="upper",
+    im = ax.imshow(img, cmap=cmap, aspect="equal", origin="upper",
                    interpolation="nearest", vmin=vmin, vmax=vmax)
-    ax.set_title(title, fontsize=9, fontweight="bold", color="black", pad=3)
-    ax.set_xticks([0, w // 2, w])
-    ax.set_yticks([0, h // 2, h])
-    ax.tick_params(labelsize=7, colors="black")
-    cbar = plt.colorbar(im, ax=ax, fraction=0.035, pad=0.02)
+    ax.set_title(title, fontsize=10, fontweight="bold", color="black", pad=4)
+    ax.set_xticks([])
+    ax.set_yticks([])
+    # Scale colorbar height to the image aspect so it matches the panel
+    cbar = plt.colorbar(im, ax=ax, fraction=0.046 * h / w, pad=0.02)
     cbar.set_label(cbar_label, fontsize=7, color="black")
     cbar.ax.tick_params(labelsize=6, colors="black")
+    cbar.outline.set_edgecolor("#CCCCCC")
 
 
 def render_grid(
@@ -521,7 +544,12 @@ def render_grid(
     nc = n_cols
     nr = math.ceil(n / nc)
 
-    fig, axes = plt.subplots(nr, nc, figsize=(5.5 * nc, 4.2 * nr + 1.2), dpi=110)
+    panel_w = 5.2
+    panel_h = panel_w * height / width + 0.55          # image + title strip
+    fig, axes = plt.subplots(
+        nr, nc, figsize=(panel_w * nc, panel_h * nr + (0.6 if title else 0)),
+        dpi=110, layout="constrained",
+    )
     fig.patch.set_facecolor("white")
     axes = np.array(axes).flatten()
 
@@ -530,9 +558,9 @@ def render_grid(
     for idx, key in enumerate(keys):
         _imshow_ax(
             axes[idx], cube[idx],
-            cmap      = _display_cmap(key, elements) if is_diff else
-                        (LinearSegmentedColormap.from_list(key, ["#000000", "#FF0000"])
-                         if key not in elements else elements[key]["cmap"]),
+            cmap      = "RdBu_r" if is_diff else
+                        (elements[key]["cmap"] if key in elements
+                         else _display_cmap(key, elements)),
             is_diff   = is_diff,
             w=width, h=height,
             title     = _display_name(key, elements),
@@ -545,7 +573,6 @@ def render_grid(
     if title:
         fig.suptitle(title, fontsize=13, fontweight="bold", color="black")
 
-    plt.tight_layout(rect=[0, 0, 1, 0.96])
     os.makedirs(os.path.dirname(save_path) or ".", exist_ok=True)
     plt.savefig(save_path, dpi=130, bbox_inches="tight", facecolor="white")
     plt.close()
@@ -570,7 +597,12 @@ def render_display_grid(
     n  = len(keys)
     nr = math.ceil(n / n_cols)
 
-    fig, axes = plt.subplots(nr, n_cols, figsize=(5.5 * n_cols, 4.2 * nr + 1.2), dpi=110)
+    panel_w = 5.2
+    panel_h = panel_w * height / width + 0.55
+    fig, axes = plt.subplots(
+        nr, n_cols, figsize=(panel_w * n_cols, panel_h * nr + (0.6 if title else 0)),
+        dpi=110, layout="constrained",
+    )
     fig.patch.set_facecolor("white")
     axes = np.array(axes).flatten()
 
@@ -593,7 +625,6 @@ def render_display_grid(
     if title:
         fig.suptitle(title, fontsize=13, fontweight="bold", color="black")
 
-    plt.tight_layout(rect=[0, 0, 1, 0.96])
     os.makedirs(os.path.dirname(save_path) or ".", exist_ok=True)
     plt.savefig(save_path, dpi=130, bbox_inches="tight", facecolor="white")
     plt.close()
@@ -616,7 +647,9 @@ def render_individual(
 
     for idx, key in enumerate(keys):
         cmap = "RdBu_r" if is_diff else _display_cmap(key, elements)
-        fig, ax = plt.subplots(figsize=(7, 4.5), dpi=130)
+        fig, ax = plt.subplots(
+            figsize=(7, 7 * height / width + 0.6), dpi=130, layout="constrained",
+        )
         fig.patch.set_facecolor("white")
         _imshow_ax(
             ax, cube[idx], cmap=cmap, is_diff=is_diff,
@@ -624,7 +657,6 @@ def render_individual(
             title=_display_name(key, elements),
             cbar_label=cbar_label,
         )
-        plt.tight_layout()
         fname = f"{prefix}{key}.png"
         save_path = os.path.join(out_dir, fname)
         plt.savefig(save_path, dpi=140, bbox_inches="tight", facecolor="white")
@@ -652,20 +684,21 @@ def render_comparison_strips(
     n_scans   = len(cubes)
     n_elem    = len(keys)
 
+    panel_w = 4.6
+    panel_h = panel_w * height / width + 0.35
     fig, axes = plt.subplots(
         n_elem, n_scans,
-        figsize=(4 * n_scans + 2, 3 * n_elem),
-        dpi=100, squeeze=False,
+        figsize=(panel_w * n_scans + 1.4, panel_h * n_elem + (0.6 if title else 0)),
+        dpi=100, squeeze=False, layout="constrained",
     )
-
-    diff_abs = max(abs(float(np.nanmin(cubes[-1]))),
-                   abs(float(np.nanmax(cubes[-1]))),
-                   1e-6)
+    fig.patch.set_facecolor("white")
 
     for row_i, key in enumerate(keys):
         all_others = [c[row_i] for c in cubes[:-1]]
         g_min = float(np.nanmin(all_others))
         g_max = float(np.nanmax(all_others))
+        # symmetric per-element scale so weak elements stay readable
+        diff_abs = max(float(np.percentile(np.abs(cubes[-1][row_i]), 99)), 1e-6)
 
         for col_i in range(n_scans):
             ax   = axes[row_i, col_i]
@@ -679,27 +712,27 @@ def render_comparison_strips(
                 vmin, vmax = g_min, g_max
                 cmap = _display_cmap(key, elements)
 
-            im = ax.imshow(img, cmap=cmap, aspect="auto", origin="upper",
+            im = ax.imshow(img, cmap=cmap, aspect="equal", origin="upper",
                            interpolation="nearest", vmin=vmin, vmax=vmax)
 
             if row_i == 0:
-                ax.set_title(strip_names[col_i], fontsize=14, fontweight="bold")
+                ax.set_title(strip_names[col_i], fontsize=13, fontweight="bold")
             if col_i == 0:
                 ax.set_ylabel(
                     f"{_display_name(key, elements)}\n({elements[key]['kev']} keV)"
                     if key in elements else _display_name(key, elements),
-                    fontsize=11, fontweight="bold", rotation=0, labelpad=50, ha="right"
+                    fontsize=10, fontweight="bold", rotation=0,
+                    ha="right", va="center", labelpad=42,
                 )
 
-            cbar = plt.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
+            cbar = plt.colorbar(im, ax=ax, fraction=0.046 * height / width, pad=0.02)
             cbar.ax.tick_params(labelsize=7)
-            ax.set_xticks([0, width // 2, width])
-            ax.set_yticks([0, height // 2, height])
-            ax.tick_params(labelsize=6)
+            cbar.outline.set_edgecolor("#CCCCCC")
+            ax.set_xticks([])
+            ax.set_yticks([])
 
-    plt.tight_layout(rect=(0.06, 0.02, 1, 0.97))
     if title:
-        fig.suptitle(title, fontsize=22, fontweight="bold", y=0.99)
+        fig.suptitle(title, fontsize=16, fontweight="bold")
 
     os.makedirs(os.path.dirname(save_path) or ".", exist_ok=True)
     plt.savefig(save_path, dpi=110, bbox_inches="tight", facecolor="white")
@@ -744,12 +777,13 @@ def plot_stacked_spectrum(
 
     en = energy_axis(1024, slope, intercept)
 
-    fig, ax = plt.subplots(figsize=(14, 5), dpi=110)
+    fig, ax = plt.subplots(figsize=(14, 5), dpi=110, layout="constrained")
     fig.patch.set_facecolor("white")
     ax.set_facecolor("#F8F8F8")
     ax.semilogy(en, np.maximum(stacked, 1), color="#1155AA", linewidth=0.7, alpha=0.85)
 
     if annotation_lines:
+        ax.set_ylim(top=max(stacked.max(), 1) * 8)   # headroom for line labels
         ymax = stacked.max() * 2
         for ann in annotation_lines:
             kev, lbl, col = ann["kev"], ann["label"], ann.get("color", "#888888")
@@ -768,10 +802,9 @@ def plot_stacked_spectrum(
     for sp in ax.spines.values():
         sp.set_edgecolor("#AAAAAA")
     ax.set_title(
-        f"Stacked spectrum – {det_label}  ({n_files} pixels)",
+        f"Summed spectrum — detector {det_label}  ({n_files} pixels)",
         fontsize=11, fontweight="bold", color="black"
     )
-    plt.tight_layout()
     os.makedirs(os.path.dirname(save_path) or ".", exist_ok=True)
     plt.savefig(save_path, dpi=130, bbox_inches="tight", facecolor="white")
     plt.close()
@@ -918,7 +951,7 @@ def run_outlier_analysis(
                 )
                 summary.append((elem, det, pixel_i, dv, sig1, sig2))
 
-            print(f"         Saved {len(outlier_idx)} spectra → {os.path.relpath(out_dir)}/")
+            print(f"         Saved {len(outlier_idx)} spectra -> {os.path.relpath(out_dir)}/")
 
     # ── Histogram of differences ────────────────────────────
     n_elem = len(elements)
@@ -1100,7 +1133,7 @@ def run_scan(
                 slope, intercept, _cache_dir,
             )
             cube_c = apply_corrections(cube, keys, label)
-            disp_c, dkeys = build_display_cube(cube_c, keys, label)
+            disp_c, dkeys = build_display_cube(cube_c, keys, elements, label)
             result["cubes"][det]      = (cube_c, keys)
             result["disp_cubes"][det] = (disp_c, dkeys)
 
@@ -1108,7 +1141,7 @@ def run_scan(
             render_display_grid(
                 disp_c, dkeys, elements, width, height,
                 save_path=os.path.join(output_dir, f"elements_det{det}.png"),
-                title=f"Element maps – Det {det}  ({width}×{height})",
+                title=f"Element maps — detector {det}  ({width}×{height} px)",
             )
             if stacked_spectrum:
                 plot_stacked_spectrum(
@@ -1133,7 +1166,7 @@ def run_scan(
             render_display_grid(
                 disp_sum, dk, elements, width, height,
                 save_path=os.path.join(output_dir, "elements_sum_detectors.png"),
-                title=f"Element maps – Det {d1} + Det {d2}  (improved SNR)",
+                title=f"Element maps — detectors {d1} + {d2} summed  (improved SNR)",
             )
             render_display_grid(
                 disp_diff, dk, elements, width, height,
@@ -1158,9 +1191,9 @@ def run_scan(
             folder, width, height, label, elements, integrator,
             slope, intercept, _cache_dir,
         )
-        print(f"  Applying corrections…")
+        print(f"  Applying corrections...")
         cube_c = apply_corrections(cube, keys, label)
-        disp_c, dkeys = build_display_cube(cube_c, keys, label)
+        disp_c, dkeys = build_display_cube(cube_c, keys, elements, label)
 
         result["cubes"][label]      = (cube_c, keys)
         result["disp_cubes"][label] = (disp_c, dkeys)
@@ -1168,8 +1201,8 @@ def run_scan(
         render_display_grid(
             disp_c, dkeys, elements, width, height,
             save_path=os.path.join(output_dir, label, "element_maps.png"),
-            title=f"Element maps – {label}  |  {integrator}  ({width}×{height})\n"
-                  "bg subtracted · Zn−CuKβ · S−PbMα · Pb combined · As corrected",
+            title=f"Element maps — {label}  ({width}×{height} px, {integrator})\n"
+                  "background-subtracted net peak intensities, spectral-overlap corrections applied",
         )
         if individual_maps:
             render_individual(
@@ -1213,4 +1246,4 @@ def run_scan(
     print(f"\n{'='*60}")
     print(f"  All output saved to: {os.path.abspath(output_dir)}/")
     print(f"{'='*60}\n")
-    return
+    return result

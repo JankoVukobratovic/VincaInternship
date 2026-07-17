@@ -1,66 +1,94 @@
 """
 generate_signals.py
 ──────────────────────────────────────────────────────────────
-Za svaki MCA fajl iz prova1 (oba detektora: 10264 i 19511)
-generise spektar plot i oznacava prisutne elemente.
+Render one annotated spectrum plot per MCA file of prova1
+(both detectors: 10264 and 19511).
 
-Izlaz:
+Output:
   signals_prova1/10264/None_N.png
   signals_prova1/19511/None_N.png
 
-Peak detekcija po pikselu:
-  element se obelezava ako je intenzitet u prozoru za dati piksel
-  veci od 1.5 × (5-ti percentil mape za taj element) = pozadina.
+Per-pixel peak detection:
+  an element is marked "present" in a pixel when the integrated window
+  intensity exceeds 1.5 x (5th percentile of that element's map)
+  — i.e. clearly above the background level.
+
+Requires the raw MCA files under Resources/ and the element-map cache
+(any of the known cache layouts). Run from the project root:
+    python scripts/generate_signals.py
 """
 
 import os
 import sys
+
 import numpy as np
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+from matplotlib.lines import Line2D
 from scipy.stats import linregress
 
-# ── Kalibracija ───────────────────────────────────────────────
+# ── Calibration ───────────────────────────────────────────────
 CAL = np.array([[219, 6.4], [278, 8.0], [363, 10.5], [436, 12.6], [869, 25.3]])
 SLOPE, INTERCEPT, *_ = linregress(CAL[:, 0], CAL[:, 1])
 
-# ── Elementi sa tacknim energijama linija ──────────────────────
-# kev_true  = tacna energija fluorescencione linije
-# code_key  = kljuc elementa u analiza_novi ELEMENT_MAP (za npy ucitavanje)
-# note      = opciona napomena (overlap itd.)
+# ── Elements with exact line energies ─────────────────────────
+# kev      : exact fluorescence-line energy
+# code_key : element key used in the .npy cache file names
 ELEMENTS = [
-    {"label": "K Kα",   "kev": 3.3138,  "code_key": "K",  "color": "#FFD700"},
-    {"label": "Ca Kα",  "kev": 3.6917,  "code_key": "Ca", "color": "#FFFFFF"},
-    {"label": "Ti Kα",  "kev": 4.5109,  "code_key": "Ti", "color": "#FF9966"},
-    {"label": "Fe Kα",  "kev": 6.4038,  "code_key": "Fe", "color": "#FF3300"},
-    {"label": "Cu Kα",  "kev": 8.0478,  "code_key": "Cu", "color": "#00FFAA"},
-    {"label": "Zn Kα",  "kev": 8.6389,  "code_key": "Zn", "color": "#66CCFF"},
-    {"label": "As/Pb Lα","kev": 10.545, "code_key": "As", "color": "#FF8800"},
-    {"label": "Pb Lβ",  "kev": 12.6137, "code_key": "Pb", "color": "#CC66FF"},
+    {"label": "K Kα",     "kev": 3.3138,  "code_key": "K",  "color": "#FFD700"},
+    {"label": "Ca Kα",    "kev": 3.6917,  "code_key": "Ca", "color": "#FFFFFF"},
+    {"label": "Ti Kα",    "kev": 4.5109,  "code_key": "Ti", "color": "#FF9966"},
+    {"label": "Fe Kα",    "kev": 6.4038,  "code_key": "Fe", "color": "#FF3300"},
+    {"label": "Cu Kα",    "kev": 8.0478,  "code_key": "Cu", "color": "#00FFAA"},
+    {"label": "Zn Kα",    "kev": 8.6389,  "code_key": "Zn", "color": "#66CCFF"},
+    {"label": "Pb Lα",    "kev": 10.545,  "code_key": "PbLa", "color": "#FF8800"},
+    {"label": "Pb Lβ",    "kev": 12.6137, "code_key": "PbLb", "color": "#CC66FF"},
 ]
 
-# ── Ucitaj NPY cache (prag = 1.5 × 5-ti percentil) ───────────
-NPY_DIR    = "results/_npy_cache"
-DETEKTORI  = ["10264", "19511"]
-PROVA      = "prova1"
+DETECTORS = ["10264", "19511"]
+PROVA     = "prova1"
+PROVA_DIR = next(
+    (p for p in (os.path.join("Resources", "aurora-antico1-prova1"),
+                 "aurora-antico1-prova1")
+     if os.path.isdir(p)),
+    os.path.join("Resources", "aurora-antico1-prova1"),
+)
+W, H      = 120, 60
+TOTAL     = W * H
+OUT_BASE  = "signals_prova1"
 
-bg_thresh = {}   # bg_thresh[(det, code_key)] = prag
-npy_maps  = {}   # npy_maps[(det, code_key)]  = 2D array (60×120)
+if not os.path.isdir(PROVA_DIR):
+    sys.exit(f"ERROR: raw MCA data not found in {PROVA_DIR} "
+             "(see README: Setup / Raw MCA data).")
 
-for det in DETEKTORI:
+# ── Element-map cache (threshold = 1.5 x 5th percentile) ──────
+_ALIASES = {"PbLa": ["PbLa", "Pb_La"], "PbLb": ["PbLb", "Pb_Lb"]}
+
+def _find_map(det: str, key: str):
+    for name in _ALIASES.get(key, [key]):
+        for path in (
+            os.path.join("results", det, "_npy_cache", f"{PROVA}_{name}.npy"),
+            os.path.join("results", "_npy_cache", PROVA, f"{det}_{name}.npy"),
+            os.path.join("results", "_npy_cache", f"{PROVA}_{det}_{name}.npy"),
+        ):
+            if os.path.exists(path):
+                return np.load(path)
+    return None
+
+
+bg_thresh = {}   # (det, code_key) -> presence threshold
+npy_maps  = {}   # (det, code_key) -> 2D map (60x120) or None
+
+for det in DETECTORS:
     for el in ELEMENTS:
         key = el["code_key"]
-        path = os.path.join(NPY_DIR, f"{PROVA}_{det}_{key}.npy")
-        if os.path.exists(path):
-            m = np.load(path)
-            npy_maps[(det, key)]  = m
-            bg_thresh[(det, key)] = 1.5 * np.percentile(m, 5)
-        else:
-            npy_maps[(det, key)]  = None
-            bg_thresh[(det, key)] = float("inf")
+        m = _find_map(det, key)
+        npy_maps[(det, key)]  = m
+        bg_thresh[(det, key)] = (1.5 * np.percentile(m, 5)
+                                 if m is not None else float("inf"))
 
-# ── Parsiranje MCA fajla ───────────────────────────────────────
+# ── MCA parsing ────────────────────────────────────────────────
 def parse_mca(filepath):
     counts, in_data = [], False
     real_time = 3.0
@@ -87,18 +115,12 @@ def parse_mca(filepath):
     return np.array(counts, dtype=np.float64), real_time
 
 
-# ── Glavna petlja ──────────────────────────────────────────────
-PROVA_DIR = "Resources/aurora-antico1-prova1"
-W, H      = 120, 60
-TOTAL     = W * H
-OUT_BASE  = "signals_prova1"
-
-# Unapred kreiraj energy os (ista za sve fajlove iste duzine)
+# ── Main loop ──────────────────────────────────────────────────
 _energy_cache = {}
 
 fig, ax = plt.subplots(figsize=(10, 4))
 
-for det in DETEKTORI:
+for det in DETECTORS:
     out_dir = os.path.join(OUT_BASE, det)
     os.makedirs(out_dir, exist_ok=True)
 
@@ -116,74 +138,60 @@ for det in DETEKTORI:
         row = (i - 1) // W
         col = (i - 1) % W
 
-        # ── Nacrtaj spektar ────────────────────────────────────
+        # ── Spectrum ───────────────────────────────────────────
         ax.clear()
         ax.set_facecolor("#111111")
         fig.patch.set_facecolor("#1A1A1A")
 
         ax.plot(energy, counts, color="#AADDFF", linewidth=0.6, alpha=0.9)
 
-        # ── Obelezi elemente ───────────────────────────────────
+        # ── Element markers ────────────────────────────────────
         ymax = counts.max() if counts.max() > 0 else 1.0
+        present_els = []
 
         for el in ELEMENTS:
             key   = el["code_key"]
-            ekev  = el["kev"]
-            color = el["color"]
-            label = el["label"]
-
-            # Da li je element prisutan u ovom pikselu?
             m     = npy_maps.get((det, key))
             thr   = bg_thresh.get((det, key), float("inf"))
             val   = m[row, col] if m is not None else 0.0
-            present = (val >= thr)
 
-            if present:
-                ax.axvline(ekev, color=color, linewidth=1.2, alpha=0.9,
-                           linestyle="-")
-                ax.text(ekev, ymax * 0.97, label,
-                        color=color, fontsize=6, ha="center", va="top",
+            if val >= thr:
+                present_els.append(el)
+                ax.axvline(el["kev"], color=el["color"], linewidth=1.2,
+                           alpha=0.9, linestyle="-")
+                ax.text(el["kev"], ymax * 0.97, el["label"],
+                        color=el["color"], fontsize=6, ha="center", va="top",
                         rotation=90, clip_on=True)
             else:
-                # Prikazuje se kao slaba isprekidana linija
-                ax.axvline(ekev, color=color, linewidth=0.5, alpha=0.35,
-                           linestyle="--")
+                # absent: faint dashed reference line
+                ax.axvline(el["kev"], color=el["color"], linewidth=0.5,
+                           alpha=0.35, linestyle="--")
 
         ax.set_xlim(0, 20)
-        ax.set_xlabel("Energija (keV)", color="white", fontsize=8)
+        ax.set_xlabel("Energy (keV)", color="white", fontsize=8)
         ax.set_ylabel("Counts", color="white", fontsize=8)
         ax.tick_params(colors="white", labelsize=7)
         for spine in ax.spines.values():
             spine.set_edgecolor("#555555")
 
         ax.set_title(
-            f"Prova1 | Detektor {det} | Piksel {i} (red={row+1}, kol={col+1})",
-            color="white", fontsize=8, pad=4
+            f"prova1  |  detector {det}  |  pixel {i} "
+            f"(row {row + 1}, col {col + 1})",
+            color="white", fontsize=8, pad=4,
         )
 
-        # Legenda samo sa prisutnim elementima
-        present_labels = [
-            el["label"] for el in ELEMENTS
-            if npy_maps.get((det, el["code_key"])) is not None
-            and npy_maps[(det, el["code_key"])][row, col] >= bg_thresh.get((det, el["code_key"]), float("inf"))
-        ]
-        if present_labels:
-            from matplotlib.lines import Line2D
-            handles = [
-                Line2D([0], [0], color=el["color"], linewidth=1.5, label=el["label"])
-                for el in ELEMENTS
-                if el["label"] in present_labels
-            ]
+        if present_els:
+            handles = [Line2D([0], [0], color=el["color"], linewidth=1.5,
+                              label=el["label"]) for el in present_els]
             ax.legend(handles=handles, loc="upper right", fontsize=6,
                       facecolor="#333333", edgecolor="#555555",
                       labelcolor="white", framealpha=0.7)
 
-        out_path = os.path.join(out_dir, f"None_{i}.png")
-        fig.savefig(out_path, dpi=72, bbox_inches="tight",
-                    facecolor=fig.get_facecolor())
+        fig.savefig(os.path.join(out_dir, f"None_{i}.png"), dpi=72,
+                    bbox_inches="tight", facecolor=fig.get_facecolor())
 
         if i % 500 == 0 or i == TOTAL:
-            print(f"  [{det}] {i}/{TOTAL} ({100*i//TOTAL}%)", flush=True)
+            print(f"  [{det}] {i}/{TOTAL} ({100 * i // TOTAL}%)", flush=True)
 
 plt.close(fig)
-print("\nSvi plotovi sacuvani u:", os.path.abspath(OUT_BASE))
+print("\nAll plots saved to:", os.path.abspath(OUT_BASE))

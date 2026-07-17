@@ -1,689 +1,671 @@
 """
-scripts/03_sam_segmentation.py
+03_sam_segmentation.py
 ===============================================================================
-Segmentacija freske pomocu Meta SAM (Segment Anything Model) +
-agregirana analiza hemijskog rizika po regionima.
+Region segmentation of the painting with Meta SAM (Segment Anything Model)
++ per-region aggregation of the Chemical Vulnerability Index (CVI).
 
-PIPELINE:
-  1. Ucitavanje XRF element mapa (Ca, Ti, Fe, Cu, Pb_La) — BEZ Sn
-  2. Priprema ulazne slike za SAM (multi-element kompozit)
-  3. SAM automatska segmentacija (Automatic Mask Generator)
-  4. Filtriranje i spajanje segmenata
-  5. Per-region CVI analiza (Chemical Vulnerability Index)
-  6. Generisanje izvestaja za restauratore
-  7. Vizualizacija
+Companion code to Pešić et al., ICETRAN 2026 (ICETRAN.pdf).
 
-NAPOMENA O Sn (KALAJU):
-  Kalaj je iskljucen iz analize jer je identifikovan kao artefakt
-  u podacima — ne predstavlja stvarni pigment na fresci.
+PIPELINE
+  1. Load cached XRF element maps (Ca, Ti, Fe, Cu, Pb) — Sn excluded
+  2. Build the SAM input image (false-color element composite, upscaled 8x)
+  3. SAM automatic mask generation (prompt-free)
+  4. Mask post-processing (downscale, majority vote, small-segment filter)
+  5. Per-region CVI statistics and dominant degradation mechanism
+  6. Conservator-facing report + figures
+
+NOTE ON Sn:
+  Tin is excluded from the analysis — it was identified as an acquisition
+  artifact in the data, not a real pigment.
+
+Usage (from the project root):
+    python scripts/03_sam_segmentation.py [prova1|prova2]
+
+Requires: torch, segment-anything, and the ViT-B checkpoint at
+models/sam_vit_b_01ec64.pth (see README: Setup).
 """
 
 import os
 import sys
+
 import numpy as np
+import matplotlib
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 from matplotlib.colors import LinearSegmentedColormap
-from scipy.ndimage import gaussian_filter, label as ndlabel
-from scipy.stats import linregress
-import torch
-
-# Dodaj parent dir za pristup podacima
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from scipy.ndimage import (binary_dilation, distance_transform_edt,
+                           gaussian_filter, zoom as ndi_zoom)
 
 # ═══════════════════════════════════════════════════════════════════════════════
-#  KONFIGURACIJA
+#  CONFIGURATION
 # ═══════════════════════════════════════════════════════════════════════════════
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-SAM_DIR  = os.path.dirname(os.path.abspath(__file__))
-IZLAZ    = os.path.join(BASE_DIR, 'results', 'sam_segmentation')
-os.makedirs(IZLAZ, exist_ok=True)
+OUT_DIR  = os.path.join(BASE_DIR, "results", "sam_segmentation")
+os.makedirs(OUT_DIR, exist_ok=True)
 
 ROWS, COLS = 60, 120
-DATASET_LABEL = sys.argv[1] if len(sys.argv) > 1 else 'prova1'
+DATASET    = sys.argv[1] if len(sys.argv) > 1 else "prova1"
 
-# Elementi — BEZ Sn (artefakt u podacima)
-ELEMENTI = ['Ca', 'Ti', 'Fe', 'Cu', 'Pb_La']
+# Sn excluded (acquisition artifact)
+ELEMENTS  = ["Ca", "Ti", "Fe", "Cu", "Pb_La"]
+# Paper: "All analyses are performed on a single detector (10264)."
+# Add "19511" to average both detectors instead.
+DETECTORS = ["10264"]
 
-# SAM checkpoint
-SAM_CHECKPOINT = os.path.join(BASE_DIR, 'models', 'sam_vit_b_01ec64.pth')
-SAM_MODEL_TYPE = 'vit_b'
+SAM_CHECKPOINT = os.path.join(BASE_DIR, "models", "sam_vit_b_01ec64.pth")
+SAM_MODEL_TYPE = "vit_b"
+SCALE          = 8            # upscale factor for the SAM input image
 
-# Rizik colormap
-RISK_CMAP = LinearSegmentedColormap.from_list('risk', [
-    (0.0, '#1a9641'), (0.3, '#a6d96a'), (0.5, '#ffffbf'),
-    (0.7, '#fdae61'), (1.0, '#d7191c'),
+RISK_CMAP = LinearSegmentedColormap.from_list("risk", [
+    (0.0, "#1a9641"), (0.3, "#a6d96a"), (0.5, "#ffffbf"),
+    (0.7, "#fdae61"), (1.0, "#d7191c"),
 ])
 
-# Pigmentne boje za vizualizaciju
-PIGMENT_BOJE = {
-    'Ca':    np.array([0.93, 0.87, 0.72]),
-    'Ti':    np.array([0.96, 0.96, 0.94]),
-    'Fe':    np.array([0.68, 0.20, 0.03]),
-    'Cu':    np.array([0.09, 0.27, 0.70]),
-    'Pb_La': np.array([0.94, 0.91, 0.80]),
-}
+# Fixed rule identity colors (Okabe-Ito, colorblind-safe)
+RULE_COLORS = ["#0072B2", "#E69F00", "#009E73", "#D55E00", "#CC79A7"]
 
-# Pravila hemijskog rizika (bez Sn)
-PRAVILA_RIZIKA = [
-    {'id': 'R1', 'el_a': 'Ti',    'el_b': 'Ca',    'w': 1.00,
-     'naziv': 'Termalna inkompatibilnost',
-     'opis': 'TiO2 restauracija preko CaCO3 maltera'},
-    {'id': 'R2', 'el_a': 'Cu',    'el_b': 'Cu',    'w': 0.85,
-     'naziv': 'Degradacija azurita',
-     'opis': 'Azurit -> malahit transformacija'},
-    {'id': 'R3', 'el_a': 'Pb_La', 'el_b': 'Pb_La', 'w': 0.70,
-     'naziv': 'Potamnjivanje olovne bele',
-     'opis': 'PbCO3 -> PbS u prisustvu sumpora'},
-    {'id': 'R4', 'el_a': 'Ti',    'el_b': 'Cu',    'w': 0.90,
-     'naziv': 'Zarobljena vlaga pod restauracijom',
-     'opis': 'TiO2 blokira difuziju vlage iz Cu-pigmenta'},
-    {'id': 'R5', 'el_a': 'Fe',    'el_b': 'Pb_La', 'w': 0.55,
-     'naziv': 'Fe/Pb interfejs degradacija',
-     'opis': 'Fe2O3 katalizuje oksidaciju Pb-pigmenta'},
+# Degradation rules — paper Table II, chemistry-first severity weights
+RISK_RULES = [
+    {"id": "R1", "el_a": "Ti",    "el_b": "Ca",    "w": 0.40,
+     "name": "TiO2/CaCO3 thermal mismatch",
+     "desc": "TiO2 layer over a CaCO3-bearing ground"},
+    {"id": "R2", "el_a": "Cu",    "el_b": "Cu",    "w": 1.00,
+     "name": "Cu-based green pigment degradation",
+     "desc": "Basic copper carbonates transform in humid air"},
+    {"id": "R3", "el_a": "Pb_La", "el_b": "Pb_La", "w": 1.00,
+     "name": "Lead white darkening (PbS)",
+     "desc": "PbCO3 -> PbS in the presence of sulfur compounds"},
+    {"id": "R4", "el_a": "Ti",    "el_b": "Cu",    "w": 0.60,
+     "name": "Trapped moisture under TiO2",
+     "desc": "TiO2 blocks moisture diffusion out of the Cu pigment"},
+    {"id": "R5", "el_a": "Fe",    "el_b": "Pb_La", "w": 0.80,
+     "name": "Fe-catalyzed Pb oxidation",
+     "desc": "Fe2O3 catalyses oxidation of the Pb pigment"},
 ]
 
+MATERIAL_DESC = {
+    "Ca":    "Lime/chalk layer (CaCO3)",
+    "Ti":    "Titanium white ground (TiO2)",
+    "Fe":    "Ochre (Fe-based pigment)",
+    "Cu":    "Cu-based green pigment",
+    "Pb_La": "Lead white (Pb-based pigment)",
+}
+MATERIAL_COLORS = {
+    "Ca":    [0.93, 0.87, 0.72],
+    "Ti":    [0.96, 0.96, 0.94],
+    "Fe":    [0.68, 0.20, 0.03],
+    "Cu":    [0.09, 0.27, 0.70],
+    "Pb_La": [0.80, 0.75, 0.95],
+}
+MATERIAL_SHORT = {"Ca": "Lime/chalk", "Ti": "Ti-white ground", "Fe": "Ochre",
+                  "Cu": "Cu green", "Pb_La": "Lead white"}
 
-# ═══════════════════════════════════════════════════════════════════════════════
-#  UCITAVANJE PODATAKA
-# ═══════════════════════════════════════════════════════════════════════════════
-
-def norm_percentil(mapa, q_lo=8, q_hi=99):
-    bg   = np.percentile(mapa, q_lo)
-    peak = np.percentile(mapa, q_hi)
-    return np.clip((mapa - bg) / (peak - bg + 1e-10), 0, 1)
-
-
-def ucitaj_mape(dataset_label):
-    npy_dir = os.path.join(BASE_DIR, 'results', '_npy_cache', dataset_label)
-    mape = {}
-    for el in ELEMENTI:
-        m10 = np.load(os.path.join(npy_dir, f'10264_{el}.npy'))
-        m19 = np.load(os.path.join(npy_dir, f'19511_{el}.npy'))
-        mape[el] = (m10 + m19) / 2.0
-    return mape
-
-
-print(f"Ucitavam element mape ({DATASET_LABEL})...")
-mape_raw = ucitaj_mape(DATASET_LABEL)
-norm = {el: norm_percentil(mape_raw[el]) for el in ELEMENTI}
-print(f"  Ucitano {len(ELEMENTI)} elemenata: {', '.join(ELEMENTI)}")
-print(f"  Sn (kalaj) ISKLJUCEN — artefakt u podacima")
+_MAP_CB = dict(fraction=0.046 * ROWS / COLS, pad=0.02)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-#  PRIPREMA SLIKE ZA SAM
+#  DATA LOADING (same flexible cache resolution as 02_vulnerability.py)
 # ═══════════════════════════════════════════════════════════════════════════════
 
-print("\nPripremam ulaznu sliku za SAM...")
+_ELEMENT_ALIASES = {"Pb_La": ["Pb_La", "PbLa"]}
 
-# SAM ocekuje RGB uint8 sliku. Pravimo multi-element kompozit:
-# R = Fe (konture, figure), G = Cu (azurit, pozadina), B = Pb (olovna bela)
-# Ovo daje SAM-u maksimalan kontrast izmedju razlicitih materijala.
-rgb_input = np.stack([norm['Fe'], norm['Cu'], norm['Pb_La']], axis=2)
-rgb_input = np.clip(rgb_input, 0, 1)
+def _cache_candidates(dataset, det, el):
+    paths = []
+    for name in _ELEMENT_ALIASES.get(el, [el]):
+        paths += [
+            os.path.join(BASE_DIR, "results", det, "_npy_cache", f"{dataset}_{name}.npy"),
+            os.path.join(BASE_DIR, "results", "_npy_cache", dataset, f"{det}_{name}.npy"),
+            os.path.join(BASE_DIR, "results", "_npy_cache", f"{dataset}_{det}_{name}.npy"),
+        ]
+    return paths
 
-# SAM radi bolje na vecim slikama — skaliramo na 480x960 (8x)
-from scipy.ndimage import zoom as ndi_zoom
-SCALE = 8
-rgb_upscaled = np.stack([
-    ndi_zoom(rgb_input[:, :, c], SCALE, order=3)
-    for c in range(3)
-], axis=2)
-rgb_upscaled = np.clip(rgb_upscaled, 0, 1)
 
-# Konverzija u uint8
+def load_element_maps(dataset):
+    maps, used = {}, set()
+    for el in ELEMENTS:
+        per_det = []
+        for det in DETECTORS:
+            for path in _cache_candidates(dataset, det, el):
+                if os.path.exists(path):
+                    per_det.append(np.load(path))
+                    used.add(det)
+                    break
+        if not per_det:
+            sys.exit(f"ERROR: element map '{el}' for '{dataset}' not found in "
+                     f"any cache — run scripts/01_run_analysis.py first.")
+        maps[el] = np.mean(per_det, axis=0)
+    print(f"  [{dataset}] element maps loaded (detectors: {', '.join(sorted(used))})")
+    return maps
+
+
+def norm_percentile(m, q_lo=8, q_hi=99):
+    bg   = np.percentile(m, q_lo)
+    peak = np.percentile(m, q_hi)
+    return np.clip((m - bg) / (peak - bg + 1e-10), 0, 1)
+
+
+print(f"Loading element maps ({DATASET})...")
+raw_maps = load_element_maps(DATASET)
+norm = {el: norm_percentile(raw_maps[el]) for el in ELEMENTS}
+print(f"  {len(ELEMENTS)} elements: {', '.join(ELEMENTS)}  (Sn excluded — artifact)")
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  SAM INPUT IMAGE
+# ═══════════════════════════════════════════════════════════════════════════════
+
+print("\nPreparing the SAM input image...")
+
+# SAM expects an RGB uint8 image. False-color composite:
+# R = Fe (contours/figure), G = Cu (green pigment), B = Pb (lead white)
+# maximises contrast between the painting's materials.
+rgb_input = np.clip(np.stack([norm["Fe"], norm["Cu"], norm["Pb_La"]], axis=2), 0, 1)
+
+rgb_upscaled = np.clip(np.stack([
+    ndi_zoom(rgb_input[:, :, c], SCALE, order=3) for c in range(3)
+], axis=2), 0, 1)
 sam_input = (rgb_upscaled * 255).astype(np.uint8)
-print(f"  SAM ulaz: {sam_input.shape} (skalirano {SCALE}x)")
+print(f"  SAM input: {sam_input.shape} (upscaled {SCALE}x)")
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-#  SAM SEGMENTACIJA
+#  SAM SEGMENTATION
 # ═══════════════════════════════════════════════════════════════════════════════
 
-print("\nUcitavam SAM model...")
+if not os.path.exists(SAM_CHECKPOINT):
+    sys.exit(
+        f"ERROR: SAM checkpoint not found: {SAM_CHECKPOINT}\n"
+        "Download sam_vit_b_01ec64.pth from "
+        "https://github.com/facebookresearch/segment-anything#model-checkpoints "
+        "and place it in models/."
+    )
+
+print("\nLoading the SAM model...")
 from segment_anything import sam_model_registry, SamAutomaticMaskGenerator
 
 sam = sam_model_registry[SAM_MODEL_TYPE](checkpoint=SAM_CHECKPOINT)
 sam.eval()
 print(f"  Model: {SAM_MODEL_TYPE}, device: cpu")
 
-# Automatic Mask Generator — SAM sam pronalazi sve regione
 mask_generator = SamAutomaticMaskGenerator(
     model=sam,
-    points_per_side=32,         # Gustina grid-a za inicijalne prompt tacke
-    pred_iou_thresh=0.86,       # Minimalan IoU za prihvatanje maske
-    stability_score_thresh=0.92, # Stabilnost maske
-    min_mask_region_area=100,   # Minimalna velicina regiona (pikseli na uvecanoj slici)
+    points_per_side=32,           # prompt-point grid density
+    pred_iou_thresh=0.86,         # minimum predicted IoU to accept a mask
+    stability_score_thresh=0.92,  # mask stability threshold
+    min_mask_region_area=100,     # minimum region size (upscaled pixels)
 )
 
-print("Pokrecem SAM segmentaciju...")
+print("Running SAM segmentation...")
 masks = mask_generator.generate(sam_input)
-print(f"  SAM pronasao {len(masks)} segmenata")
-
-# Sortiranje po velicini (najveci prvi)
-masks = sorted(masks, key=lambda x: x['area'], reverse=True)
+print(f"  SAM proposed {len(masks)} masks")
+masks = sorted(masks, key=lambda x: x["area"], reverse=True)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-#  POST-PROCESIRANJE MASKI
+#  MASK POST-PROCESSING
 # ═══════════════════════════════════════════════════════════════════════════════
 
-print("\nPost-procesiranje maski...")
+print("\nPost-processing masks...")
 
-# Downscale maske nazad na originalnu rezoluciju (60x120)
-segments_original = np.zeros((ROWS, COLS), dtype=int)
+segments = np.zeros((ROWS, COLS), dtype=int)
 segment_info = []
-
 valid_id = 0
-for i, mask_data in enumerate(masks):
-    mask_hr = mask_data['segmentation']  # bool array (480, 960)
 
-    # Downscale na 60x120 — piksel pripada segmentu ako >50% uvecanog regiona
+for mask_data in masks:
+    mask_hr = mask_data["segmentation"]          # bool (ROWS*SCALE, COLS*SCALE)
+
+    # Downscale by majority vote: a native pixel belongs to the mask if
+    # more than half of its upscaled patch does.
     mask_lr = np.zeros((ROWS, COLS), dtype=bool)
     for r in range(ROWS):
         for c in range(COLS):
-            patch = mask_hr[r*SCALE:(r+1)*SCALE, c*SCALE:(c+1)*SCALE]
+            patch = mask_hr[r * SCALE:(r + 1) * SCALE, c * SCALE:(c + 1) * SCALE]
             mask_lr[r, c] = patch.mean() > 0.5
 
     n_pixels = mask_lr.sum()
-    if n_pixels < 5:  # Preskoci premale segmente
+    if n_pixels < 5:                              # discard tiny segments
         continue
 
     valid_id += 1
-    # Samo pikseli koji nisu vec dodeljeni vecem segmentu
-    unassigned = (segments_original == 0) & mask_lr
-    segments_original[unassigned] = valid_id
+    unassigned = (segments == 0) & mask_lr        # larger segments win overlaps
+    segments[unassigned] = valid_id
 
     segment_info.append({
-        'id': valid_id,
-        'area_px': int(n_pixels),
-        'area_pct': n_pixels / (ROWS * COLS) * 100,
-        'stability': mask_data['stability_score'],
-        'iou': mask_data['predicted_iou'],
-        'mask': mask_lr,
+        "id": valid_id,
+        "area_px": int(n_pixels),
+        "area_pct": n_pixels / (ROWS * COLS) * 100,
+        "stability": mask_data["stability_score"],
+        "iou": mask_data["predicted_iou"],
+        "mask": mask_lr,
     })
 
-# Dodeli nedodeljene piksele najblizem segmentu
-from scipy.ndimage import distance_transform_edt
-unassigned_mask = segments_original == 0
-if unassigned_mask.any():
-    # Za svaki segment racunamo distancu, dodelimo najblizem
+# Assign leftover pixels to the nearest segment
+unassigned_mask = segments == 0
+if unassigned_mask.any() and segment_info:
     min_dist = np.full((ROWS, COLS), np.inf)
     for seg in segment_info:
-        dist = distance_transform_edt(~seg['mask'])
+        dist = distance_transform_edt(~seg["mask"])
         closer = dist < min_dist
-        segments_original[unassigned_mask & closer] = seg['id']
+        segments[unassigned_mask & closer] = seg["id"]
         min_dist[unassigned_mask & closer] = dist[unassigned_mask & closer]
 
 n_segments = len(segment_info)
-print(f"  Validnih segmenata: {n_segments}")
+print(f"  Valid segments: {n_segments}")
 for seg in segment_info[:10]:
     print(f"    Segment {seg['id']:2d}: {seg['area_px']:4d} px "
           f"({seg['area_pct']:5.1f}%), IoU={seg['iou']:.3f}")
 if n_segments > 10:
-    print(f"    ... i jos {n_segments - 10} manjih segmenata")
+    print(f"    ... and {n_segments - 10} smaller segments")
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-#  PER-REGION CVI ANALIZA
+#  PER-REGION CVI
 # ═══════════════════════════════════════════════════════════════════════════════
 
-print("\nRacunam CVI po regionima...")
+print("\nComputing per-region CVI...")
 
-def racunaj_cvi_piksel(norm_maps):
-    """Racuna CVI za svaki piksel."""
+def compute_cvi(norm_maps):
+    """Per-pixel CVI + dominant rule (paper Eq. 2)."""
     cvi = np.zeros((ROWS, COLS))
     dom = np.zeros((ROWS, COLS), dtype=int)
     risk_maps = {}
 
-    for pi, pravilo in enumerate(PRAVILA_RIZIKA):
-        a = norm_maps[pravilo['el_a']]
-        b = norm_maps[pravilo['el_b']]
-        w = pravilo['w']
-
-        if pravilo['el_a'] == pravilo['el_b']:
-            risk = w * a
-        else:
-            risk = w * np.sqrt(a * b)
-
-        risk = gaussian_filter(risk, sigma=1.0)
-        risk = np.clip(risk, 0, 1)
-        risk_maps[pravilo['id']] = risk
+    for ri, rule in enumerate(RISK_RULES):
+        a, b, w = norm_maps[rule["el_a"]], norm_maps[rule["el_b"]], rule["w"]
+        risk = w * a if rule["el_a"] == rule["el_b"] else w * np.sqrt(a * b)
+        risk = np.clip(gaussian_filter(risk, sigma=1.0), 0, 1)
+        risk_maps[rule["id"]] = risk
 
         mask = risk > cvi
         cvi[mask] = risk[mask]
-        dom[mask] = pi
+        dom[mask] = ri
 
     return cvi, dom, risk_maps
 
-cvi, dominant_risk, risk_maps = racunaj_cvi_piksel(norm)
 
-# Agregacija po regionima
+cvi, dominant_risk, risk_maps = compute_cvi(norm)
+
 region_reports = []
 for seg in segment_info:
-    mask = segments_original == seg['id']
+    mask = segments == seg["id"]
     n_px = mask.sum()
     if n_px == 0:
         continue
 
-    # Srednji intenziteti elemenata u regionu
-    el_means = {el: float(norm[el][mask].mean()) for el in ELEMENTI}
-
-    # CVI statistika u regionu
+    el_means = {el: float(norm[el][mask].mean()) for el in ELEMENTS}
     cvi_vals = cvi[mask]
-    region_cvi_mean = float(cvi_vals.mean())
-    region_cvi_max  = float(cvi_vals.max())
-
-    # Dominantni rizik u regionu
-    dom_vals = dominant_risk[mask]
-    dom_counts = np.bincount(dom_vals, minlength=len(PRAVILA_RIZIKA))
-    dom_idx = dom_counts.argmax()
-
-    # Klasifikacija
-    pct_elevated = float(np.mean(cvi_vals >= 0.5) * 100)
-    pct_critical = float(np.mean(cvi_vals >= 0.75) * 100)
-
-    # Opis materijala (koji element dominira)
+    dom_idx  = np.bincount(dominant_risk[mask],
+                           minlength=len(RISK_RULES)).argmax()
     dominant_el = max(el_means, key=el_means.get)
-    el_desc = {
-        'Ca': 'Krecni malter (intonaco)',
-        'Ti': 'Moderna restauracija (TiO2)',
-        'Fe': 'Okra/hematit (Fe-pigment)',
-        'Cu': 'Azurit (Cu-pigment)',
-        'Pb_La': 'Olovna bela (Pb-pigment)',
-    }
 
-    report = {
-        'id': seg['id'],
-        'area_px': n_px,
-        'area_pct': n_px / (ROWS * COLS) * 100,
-        'el_means': el_means,
-        'dominant_el': dominant_el,
-        'material': el_desc.get(dominant_el, '?'),
-        'cvi_mean': region_cvi_mean,
-        'cvi_max': region_cvi_max,
-        'dominant_risk': PRAVILA_RIZIKA[dom_idx],
-        'pct_elevated': pct_elevated,
-        'pct_critical': pct_critical,
-    }
-    region_reports.append(report)
+    region_reports.append({
+        "id": seg["id"],
+        "area_px": int(n_px),
+        "area_pct": n_px / (ROWS * COLS) * 100,
+        "el_means": el_means,
+        "dominant_el": dominant_el,
+        "material": MATERIAL_DESC[dominant_el],
+        "cvi_mean": float(cvi_vals.mean()),
+        "cvi_max": float(cvi_vals.max()),
+        "dominant_risk": RISK_RULES[dom_idx],
+        "pct_elevated": float(np.mean(cvi_vals >= 0.5) * 100),
+        "pct_critical": float(np.mean(cvi_vals >= 0.75) * 100),
+    })
 
-# Sortiraj po riziku (najrizicniji prvi)
-region_reports.sort(key=lambda r: r['cvi_mean'], reverse=True)
+region_reports.sort(key=lambda r: r["cvi_mean"], reverse=True)
 
-print(f"\n{'='*75}")
-print(f"  IZVESTAJ PO REGIONIMA — SAM segmentacija + CVI analiza")
-print(f"{'='*75}")
+
+def region_level(mean_cvi):
+    if mean_cvi >= 0.75: return "CRITICAL"
+    if mean_cvi >= 0.50: return "ELEVATED"
+    if mean_cvi >= 0.25: return "MODERATE"
+    return "LOW"
+
+
+print(f"\n{'=' * 75}")
+print("  PER-REGION REPORT — SAM segmentation + CVI")
+print(f"{'=' * 75}")
 for r in region_reports[:15]:
-    risk_level = 'KRITICAN' if r['cvi_mean'] >= 0.5 else \
-                 'UMEREN' if r['cvi_mean'] >= 0.25 else 'NIZAK'
     print(f"\n  Region {r['id']:2d}  |  {r['area_px']:4d} px ({r['area_pct']:5.1f}%)"
-          f"  |  CVI: {r['cvi_mean']:.3f} (max {r['cvi_max']:.3f})  |  [{risk_level}]")
-    print(f"    Materijal: {r['material']}")
-    print(f"    Dominantan rizik: {r['dominant_risk']['id']} — {r['dominant_risk']['naziv']}")
-    print(f"    Elementi: " + "  ".join(
-        f"{el}={r['el_means'][el]:.2f}" for el in ELEMENTI))
-    if r['pct_elevated'] > 0:
-        print(f"    Povisen rizik: {r['pct_elevated']:.1f}% piksela"
-              f"  |  Kritican: {r['pct_critical']:.1f}%")
+          f"  |  CVI: {r['cvi_mean']:.3f} (max {r['cvi_max']:.3f})"
+          f"  |  [{region_level(r['cvi_mean'])}]")
+    print(f"    Material: {r['material']}")
+    print(f"    Dominant risk: {r['dominant_risk']['id']} — {r['dominant_risk']['name']}")
+    print("    Elements: " + "  ".join(f"{el}={r['el_means'][el]:.2f}" for el in ELEMENTS))
+    if r["pct_elevated"] > 0:
+        print(f"    Elevated: {r['pct_elevated']:.1f}% of pixels"
+              f"  |  Critical: {r['pct_critical']:.1f}%")
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-#  VIZUALIZACIJA
+#  FIGURES
 # ═══════════════════════════════════════════════════════════════════════════════
 
-print(f"\n{'='*75}")
-print(f"  VIZUALIZACIJA")
-print(f"{'='*75}")
+print(f"\n{'=' * 75}")
+print("  FIGURES")
+print(f"{'=' * 75}")
 
-# ─── Slika 1: SAM segmentacija ──────────────────────────────────────────────
-print("\nCrtam sliku 1: SAM segmentacija...")
 
-fig, axes = plt.subplots(1, 3, figsize=(28, 8))
+def _style_cb(cb, label=None):
+    cb.ax.tick_params(labelsize=8)
+    cb.outline.set_edgecolor("#CCCCCC")
+    if label:
+        cb.set_label(label, fontsize=9)
 
-# Ulazna slika za SAM
-axes[0].imshow(rgb_input, origin='upper', aspect='equal', interpolation='bicubic')
-axes[0].set_title('SAM ulaz\n(R=Fe, G=Cu, B=Pb)', fontsize=12, fontweight='bold')
-axes[0].axis('off')
 
-# Segmentacija — random boje po segmentu
+def _blank(ax):
+    ax.set_xticks([]); ax.set_yticks([])
+
+
+# ─── Figure 1: SAM segmentation ─────────────────────────────────────────────
+print("\nFigure 1: SAM segmentation...")
+
 rng = np.random.default_rng(42)
 seg_rgb = np.zeros((ROWS, COLS, 3))
 for seg in segment_info:
-    color = rng.random(3) * 0.7 + 0.3  # svetle boje
-    mask = segments_original == seg['id']
-    seg_rgb[mask] = color
+    seg_rgb[segments == seg["id"]] = rng.random(3) * 0.7 + 0.3
 
-axes[1].imshow(seg_rgb, origin='upper', aspect='equal', interpolation='nearest')
-axes[1].set_title(f'SAM segmentacija\n({n_segments} regiona)',
-                  fontsize=12, fontweight='bold')
-axes[1].axis('off')
-
-# Segmentacija sa granicama na XRF slici
-axes[2].imshow(rgb_input, origin='upper', aspect='equal', interpolation='bicubic')
-# Crtaj granice segmenata
-from scipy.ndimage import binary_dilation
 boundaries = np.zeros((ROWS, COLS), dtype=bool)
 for seg_id in range(1, n_segments + 1):
-    mask = segments_original == seg_id
-    dilated = binary_dilation(mask, iterations=1)
-    boundary = dilated & ~mask
-    boundaries |= boundary
-axes[2].imshow(boundaries, origin='upper', aspect='equal',
-               cmap='Reds', alpha=0.6, interpolation='nearest')
-axes[2].set_title('SAM granice na XRF mapi', fontsize=12, fontweight='bold')
-axes[2].axis('off')
+    m = segments == seg_id
+    boundaries |= binary_dilation(m, iterations=1) & ~m
 
-fig.suptitle('Meta SAM — automatska segmentacija freske iz XRF podataka',
-             fontsize=14, fontweight='bold')
-plt.tight_layout()
-plt.savefig(os.path.join(IZLAZ, '1_sam_segmentacija.png'),
-            dpi=200, bbox_inches='tight')
+fig, axes = plt.subplots(1, 3, figsize=(18, 3.9), layout="constrained")
+
+axes[0].imshow(rgb_input, origin="upper", aspect="equal", interpolation="bilinear")
+axes[0].set_title("SAM input — false-color composite\n(R=Fe, G=Cu, B=Pb)",
+                  fontsize=11, fontweight="bold")
+
+axes[1].imshow(seg_rgb, origin="upper", aspect="equal", interpolation="nearest")
+axes[1].set_title(f"SAM segmentation\n({n_segments} regions)",
+                  fontsize=11, fontweight="bold")
+
+axes[2].imshow(rgb_input, origin="upper", aspect="equal", interpolation="bilinear")
+overlay = np.zeros((ROWS, COLS, 4))
+overlay[boundaries] = [1.0, 1.0, 1.0, 0.9]
+axes[2].imshow(overlay, origin="upper", aspect="equal", interpolation="nearest")
+axes[2].set_title("Segment boundaries on the XRF composite\n(white outlines)",
+                  fontsize=11, fontweight="bold")
+
+for ax in axes:
+    _blank(ax)
+
+fig.suptitle("Meta SAM — automatic region segmentation from XRF data",
+             fontsize=13, fontweight="bold")
+plt.savefig(os.path.join(OUT_DIR, "1_sam_segmentation.png"),
+            dpi=200, bbox_inches="tight", facecolor="white")
 plt.close()
-print("  Sacuvano: 1_sam_segmentacija.png")
+print("  Saved: 1_sam_segmentation.png")
 
 
-# ─── Slika 2: CVI po regionima ──────────────────────────────────────────────
-print("Crtam sliku 2: CVI po regionima...")
+# ─── Figure 2: CVI per region ───────────────────────────────────────────────
+print("Figure 2: CVI per region...")
 
-fig, axes = plt.subplots(1, 3, figsize=(28, 8))
-
-# Piksel-CVI mapa
-im0 = axes[0].imshow(cvi, origin='upper', aspect='equal', cmap=RISK_CMAP,
-                     interpolation='bicubic', vmin=0, vmax=1)
-axes[0].set_title('CVI piksel-mapa', fontsize=12, fontweight='bold')
-axes[0].axis('off')
-plt.colorbar(im0, ax=axes[0], fraction=0.046, pad=0.04)
-
-# Region-CVI mapa (srednji CVI po regionu)
 region_cvi_map = np.zeros((ROWS, COLS))
 for r in region_reports:
-    mask = segments_original == r['id']
-    region_cvi_map[mask] = r['cvi_mean']
+    region_cvi_map[segments == r["id"]] = r["cvi_mean"]
 
-im1 = axes[1].imshow(region_cvi_map, origin='upper', aspect='equal',
-                     cmap=RISK_CMAP, interpolation='nearest', vmin=0, vmax=1)
-axes[1].set_title('CVI po SAM regionima\n(agregirani rizik)',
-                  fontsize=12, fontweight='bold')
-axes[1].axis('off')
-plt.colorbar(im1, ax=axes[1], fraction=0.046, pad=0.04)
+fig, axes = plt.subplots(1, 3, figsize=(18, 3.9), layout="constrained")
 
-# Numerirani regioni sa CVI
-axes[2].imshow(region_cvi_map, origin='upper', aspect='equal',
-               cmap=RISK_CMAP, interpolation='nearest', vmin=0, vmax=1)
+im0 = axes[0].imshow(cvi, origin="upper", aspect="equal", cmap=RISK_CMAP,
+                     interpolation="bilinear", vmin=0, vmax=1)
+axes[0].set_title("CVI — pixel level", fontsize=11, fontweight="bold")
+_style_cb(plt.colorbar(im0, ax=axes[0], **_MAP_CB), "CVI score")
+
+im1 = axes[1].imshow(region_cvi_map, origin="upper", aspect="equal",
+                     cmap=RISK_CMAP, interpolation="nearest", vmin=0, vmax=1)
+axes[1].set_title("Mean CVI per SAM region", fontsize=11, fontweight="bold")
+_style_cb(plt.colorbar(im1, ax=axes[1], **_MAP_CB), "mean CVI")
+
+axes[2].imshow(region_cvi_map, origin="upper", aspect="equal",
+               cmap=RISK_CMAP, interpolation="nearest", vmin=0, vmax=1)
 for r in region_reports:
-    if r['area_pct'] < 2:  # Ne oznacavaj premale
+    if r["area_pct"] < 2:
         continue
-    mask = segments_original == r['id']
-    ys, xs = np.where(mask)
-    cy, cx = ys.mean(), xs.mean()
-    axes[2].text(cx, cy, f"R{r['id']}\n{r['cvi_mean']:.2f}",
-                 ha='center', va='center', fontsize=7, fontweight='bold',
-                 color='white' if r['cvi_mean'] > 0.4 else 'black',
-                 bbox=dict(boxstyle='round,pad=0.2', facecolor='black',
-                           alpha=0.5, edgecolor='none'))
-axes[2].set_title('Oznaceni regioni sa CVI skorom',
-                  fontsize=12, fontweight='bold')
-axes[2].axis('off')
+    ys, xs = np.where(segments == r["id"])
+    axes[2].text(xs.mean(), ys.mean(), f"R{r['id']}\n{r['cvi_mean']:.2f}",
+                 ha="center", va="center", fontsize=7, fontweight="bold",
+                 color="white",
+                 bbox=dict(boxstyle="round,pad=0.22", facecolor="black",
+                           alpha=0.55, edgecolor="none"))
+axes[2].set_title("Regions labelled with mean CVI", fontsize=11, fontweight="bold")
 
-fig.suptitle('Chemical Vulnerability Index — piksel vs. region analiza',
-             fontsize=14, fontweight='bold')
-plt.tight_layout()
-plt.savefig(os.path.join(IZLAZ, '2_cvi_regioni.png'),
-            dpi=200, bbox_inches='tight')
+for ax in axes:
+    _blank(ax)
+
+fig.suptitle("Chemical Vulnerability Index — pixel vs region aggregation",
+             fontsize=13, fontweight="bold")
+plt.savefig(os.path.join(OUT_DIR, "2_cvi_regions.png"),
+            dpi=200, bbox_inches="tight", facecolor="white")
 plt.close()
-print("  Sacuvano: 2_cvi_regioni.png")
+print("  Saved: 2_cvi_regions.png")
 
 
-# ─── Slika 3: Dominantni materijal po regionu ───────────────────────────────
-print("Crtam sliku 3: Dominantni materijal po regionu...")
+# ─── Figure 3: dominant material and risk per region ────────────────────────
+print("Figure 3: dominant material and risk per region...")
 
-fig, axes = plt.subplots(1, 2, figsize=(24, 9))
-
-# Materijal mapa
-material_colors = {
-    'Ca':    [0.93, 0.87, 0.72],
-    'Ti':    [0.96, 0.96, 0.94],
-    'Fe':    [0.68, 0.20, 0.03],
-    'Cu':    [0.09, 0.27, 0.70],
-    'Pb_La': [0.94, 0.91, 0.80],
-}
 mat_rgb = np.zeros((ROWS, COLS, 3))
 for r in region_reports:
-    mask = segments_original == r['id']
-    mat_rgb[mask] = material_colors[r['dominant_el']]
+    mat_rgb[segments == r["id"]] = MATERIAL_COLORS[r["dominant_el"]]
 
-axes[0].imshow(mat_rgb, origin='upper', aspect='equal', interpolation='nearest')
-axes[0].set_title('Dominantni materijal po SAM regionu',
-                  fontsize=12, fontweight='bold')
-axes[0].axis('off')
-el_labels = {'Ca': 'Malter', 'Ti': 'Restauracija', 'Fe': 'Okra',
-             'Cu': 'Azurit', 'Pb_La': 'Olovna bela'}
-patches = [mpatches.Patch(color=material_colors[el],
-                          label=f"{el}: {el_labels[el]}")
-           for el in ELEMENTI]
-axes[0].legend(handles=patches, loc='lower left', fontsize=9)
-
-# Dominantni rizik po regionu
-risk_colors = ['#e41a1c', '#ff7f00', '#4daf4a', '#377eb8', '#984ea3']
-risk_rgb = np.full((ROWS, COLS, 3), 0.94)
+risk_rgb = np.full((ROWS, COLS, 3), 0.95)
 for r in region_reports:
-    if r['cvi_mean'] < 0.2:
+    if r["cvi_mean"] < 0.2:
         continue
-    mask = segments_original == r['id']
-    ri = PRAVILA_RIZIKA.index(r['dominant_risk'])
-    c = risk_colors[ri]
-    risk_rgb[mask] = [int(c[1:3], 16)/255, int(c[3:5], 16)/255, int(c[5:7], 16)/255]
+    ri = RISK_RULES.index(r["dominant_risk"])
+    c = RULE_COLORS[ri]
+    risk_rgb[segments == r["id"]] = [int(c[j:j+2], 16) / 255 for j in (1, 3, 5)]
 
-axes[1].imshow(risk_rgb, origin='upper', aspect='equal', interpolation='nearest')
-axes[1].set_title('Dominantni mehanizam degradacije po regionu',
-                  fontsize=12, fontweight='bold')
-axes[1].axis('off')
-patches = [mpatches.Patch(color=risk_colors[i],
-                          label=f"{PRAVILA_RIZIKA[i]['id']}: {PRAVILA_RIZIKA[i]['naziv']}")
-           for i in range(len(PRAVILA_RIZIKA))]
-patches.append(mpatches.Patch(color='#f0f0f0', label='Nizak rizik'))
-axes[1].legend(handles=patches, loc='lower left', fontsize=8)
+fig, axes = plt.subplots(1, 2, figsize=(15, 4.6), layout="constrained")
 
-fig.suptitle('SAM segmentacija — identifikacija materijala i mehanizama rizika',
-             fontsize=14, fontweight='bold')
-plt.tight_layout()
-plt.savefig(os.path.join(IZLAZ, '3_materijal_i_rizik.png'),
-            dpi=200, bbox_inches='tight')
+axes[0].imshow(mat_rgb, origin="upper", aspect="equal", interpolation="nearest")
+axes[0].set_title("Dominant material per SAM region", fontsize=11, fontweight="bold")
+axes[0].legend(handles=[mpatches.Patch(color=MATERIAL_COLORS[el],
+                                       label=f"{el.replace('_La', '')}: {MATERIAL_SHORT[el]}")
+                        for el in ELEMENTS],
+               loc="upper center", ncol=3, fontsize=8,
+               bbox_to_anchor=(0.5, -0.03), frameon=False)
+
+axes[1].imshow(risk_rgb, origin="upper", aspect="equal", interpolation="nearest")
+axes[1].set_title("Dominant degradation mechanism per region",
+                  fontsize=11, fontweight="bold")
+patches = [mpatches.Patch(color=RULE_COLORS[i], label=f"{r['id']}: {r['name']}")
+           for i, r in enumerate(RISK_RULES)]
+patches.append(mpatches.Patch(color="#f0f0f0", label="Low risk"))
+axes[1].legend(handles=patches, loc="upper center", ncol=2, fontsize=7.5,
+               bbox_to_anchor=(0.5, -0.03), frameon=False)
+
+for ax in axes:
+    _blank(ax)
+
+fig.suptitle("SAM regions — material identification and risk mechanisms",
+             fontsize=13, fontweight="bold")
+plt.savefig(os.path.join(OUT_DIR, "3_material_and_risk.png"),
+            dpi=200, bbox_inches="tight", facecolor="white")
 plt.close()
-print("  Sacuvano: 3_materijal_i_rizik.png")
+print("  Saved: 3_material_and_risk.png")
 
 
-# ─── Slika 4: Heatmapa element intenziteta po regionu ───────────────────────
-print("Crtam sliku 4: Heatmapa intenziteta po regionu...")
+# ─── Figure 4: element-intensity heatmap per region ─────────────────────────
+print("Figure 4: per-region chemical profile...")
 
 top_n = min(15, len(region_reports))
 top_reports = region_reports[:top_n]
 
-fig, ax = plt.subplots(figsize=(12, max(6, top_n * 0.5)))
+fig, ax = plt.subplots(figsize=(9, max(4.5, top_n * 0.42 + 1.2)),
+                       layout="constrained")
 
-matrix = np.array([[r['el_means'][el] for el in ELEMENTI] for r in top_reports])
-im = ax.imshow(matrix, cmap='YlOrRd', aspect='auto', vmin=0, vmax=1)
+matrix = np.array([[r["el_means"][el] for el in ELEMENTS] for r in top_reports])
+im = ax.imshow(matrix, cmap="YlOrRd", aspect="auto", vmin=0, vmax=1)
 
-ax.set_xticks(range(len(ELEMENTI)))
-ax.set_xticklabels(ELEMENTI, fontsize=11, fontweight='bold')
+ax.set_xticks(range(len(ELEMENTS)))
+ax.set_xticklabels([el.replace("_La", "") for el in ELEMENTS],
+                   fontsize=10, fontweight="bold")
 ax.set_yticks(range(top_n))
-ax.set_yticklabels([f"R{r['id']} ({r['material'][:20]})\nCVI={r['cvi_mean']:.2f}"
-                    for r in top_reports], fontsize=9)
+ax.set_yticklabels([f"R{r['id']}  ({MATERIAL_SHORT[r['dominant_el']]}), "
+                    f"CVI {r['cvi_mean']:.2f}" for r in top_reports], fontsize=8.5)
 
 for i in range(top_n):
-    for j in range(len(ELEMENTI)):
-        val = matrix[i, j]
-        ax.text(j, i, f'{val:.2f}', ha='center', va='center', fontsize=9,
-                color='white' if val > 0.5 else 'black', fontweight='bold')
+    for j in range(len(ELEMENTS)):
+        v = matrix[i, j]
+        ax.text(j, i, f"{v:.2f}", ha="center", va="center", fontsize=8,
+                color="white" if v > 0.55 else "black")
 
-plt.colorbar(im, ax=ax, label='Normirani intenzitet', fraction=0.03, pad=0.04)
-ax.set_title('Hemijski profil svakog SAM regiona\n'
-             '(sortirano po CVI riziku, najrizicniji gore)',
-             fontsize=13, fontweight='bold')
-plt.tight_layout()
-plt.savefig(os.path.join(IZLAZ, '4_heatmapa_po_regionu.png'),
-            dpi=180, bbox_inches='tight')
+_style_cb(plt.colorbar(im, ax=ax, fraction=0.035, pad=0.02),
+          "normalised intensity")
+ax.set_title("Chemical profile of each SAM region\n"
+             "(sorted by mean CVI, highest risk first)",
+             fontsize=12, fontweight="bold")
+plt.savefig(os.path.join(OUT_DIR, "4_region_heatmap.png"),
+            dpi=180, bbox_inches="tight", facecolor="white")
 plt.close()
-print("  Sacuvano: 4_heatmapa_po_regionu.png")
+print("  Saved: 4_region_heatmap.png")
 
 
-# ─── Slika 5: Bar chart — CVI po regionu ────────────────────────────────────
-print("Crtam sliku 5: CVI bar chart...")
+# ─── Figure 5: region CVI ranking ───────────────────────────────────────────
+print("Figure 5: region ranking...")
 
-fig, ax = plt.subplots(figsize=(14, 6))
-ids = [f"R{r['id']}" for r in top_reports]
-cvi_vals = [r['cvi_mean'] for r in top_reports]
-bar_colors = [RISK_CMAP(v) for v in cvi_vals]
+fig, ax = plt.subplots(figsize=(10, max(4, top_n * 0.38 + 1.5)),
+                       layout="constrained")
+cvi_vals = [r["cvi_mean"] for r in top_reports]
 
-bars = ax.barh(range(top_n), cvi_vals, color=bar_colors, edgecolor='black', alpha=0.9)
-for i, (bar, r) in enumerate(zip(bars, top_reports)):
-    ax.text(bar.get_width() + 0.01, i,
-            f"{r['dominant_risk']['id']}: {r['material'][:25]}",
-            va='center', fontsize=9)
+bars = ax.barh(range(top_n), cvi_vals,
+               color=[RISK_CMAP(v) for v in cvi_vals], height=0.62)
+for i, r in enumerate(top_reports):
+    ax.text(cvi_vals[i] + 0.012, i,
+            f"{r['dominant_risk']['id']} — {MATERIAL_SHORT[r['dominant_el']]}",
+            va="center", fontsize=8.5)
 
 ax.set_yticks(range(top_n))
-ax.set_yticklabels(ids, fontsize=10)
-ax.set_xlabel('Srednji CVI skor', fontsize=12)
-ax.set_title('Rangiranje SAM regiona po hemijskom riziku',
-             fontsize=13, fontweight='bold')
-ax.axvline(0.5, color='red', linestyle='--', alpha=0.6, label='Prag povisen rizik')
-ax.axvline(0.25, color='orange', linestyle='--', alpha=0.6, label='Prag umeren rizik')
-ax.legend(fontsize=10)
-ax.set_xlim(0, 1.1)
-ax.grid(True, alpha=0.2, axis='x')
+ax.set_yticklabels([f"R{r['id']}" for r in top_reports], fontsize=9)
+ax.set_xlabel("Mean CVI score", fontsize=10)
+ax.set_title("SAM regions ranked by chemical risk",
+             fontsize=12, fontweight="bold")
+ax.axvline(0.25, color="#999999", linestyle="--", alpha=0.8, linewidth=1,
+           label="Moderate threshold (0.25)")
+ax.axvline(0.50, color="#555555", linestyle="--", alpha=0.8, linewidth=1,
+           label="Elevated threshold (0.50)")
+ax.legend(fontsize=8.5, frameon=False, loc="lower right")
+ax.set_xlim(0, 1.0)
+ax.grid(True, alpha=0.15, axis="x")
+ax.set_axisbelow(True)
 ax.invert_yaxis()
+ax.spines[["top", "right"]].set_visible(False)
+ax.tick_params(labelsize=8.5)
 
-plt.tight_layout()
-plt.savefig(os.path.join(IZLAZ, '5_cvi_ranking.png'),
-            dpi=180, bbox_inches='tight')
+plt.savefig(os.path.join(OUT_DIR, "5_cvi_ranking.png"),
+            dpi=180, bbox_inches="tight", facecolor="white")
 plt.close()
-print("  Sacuvano: 5_cvi_ranking.png")
+print("  Saved: 5_cvi_ranking.png")
 
 
-# ─── Slika 6: Kompletni pregled (summary panel) ─────────────────────────────
-print("Crtam sliku 6: Kompletni pregled...")
+# ─── Figure 6: summary panel ────────────────────────────────────────────────
+print("Figure 6: summary panel...")
 
-fig, axes = plt.subplots(2, 3, figsize=(28, 16))
+fig, axes = plt.subplots(2, 3, figsize=(18, 7.4), layout="constrained")
 
-# (0,0) XRF false-color
-axes[0,0].imshow(rgb_input, origin='upper', aspect='equal', interpolation='bicubic')
-axes[0,0].set_title('XRF False-color\n(R=Fe, G=Cu, B=Pb)', fontsize=11, fontweight='bold')
-axes[0,0].axis('off')
+axes[0, 0].imshow(rgb_input, origin="upper", aspect="equal", interpolation="bilinear")
+axes[0, 0].set_title("XRF false-color (R=Fe, G=Cu, B=Pb)",
+                     fontsize=10.5, fontweight="bold")
 
-# (0,1) SAM segmentacija
-axes[0,1].imshow(seg_rgb, origin='upper', aspect='equal', interpolation='nearest')
-axes[0,1].set_title(f'SAM segmentacija\n({n_segments} regiona)', fontsize=11, fontweight='bold')
-axes[0,1].axis('off')
+axes[0, 1].imshow(seg_rgb, origin="upper", aspect="equal", interpolation="nearest")
+axes[0, 1].set_title(f"SAM segmentation ({n_segments} regions)",
+                     fontsize=10.5, fontweight="bold")
 
-# (0,2) Materijal po regionu
-axes[0,2].imshow(mat_rgb, origin='upper', aspect='equal', interpolation='nearest')
-axes[0,2].set_title('Dominantni materijal', fontsize=11, fontweight='bold')
-axes[0,2].axis('off')
+axes[0, 2].imshow(mat_rgb, origin="upper", aspect="equal", interpolation="nearest")
+axes[0, 2].set_title("Dominant material", fontsize=10.5, fontweight="bold")
 
-# (1,0) CVI piksel mapa
-im = axes[1,0].imshow(cvi, origin='upper', aspect='equal', cmap=RISK_CMAP,
-                      interpolation='bicubic', vmin=0, vmax=1)
-axes[1,0].set_title('CVI piksel-mapa', fontsize=11, fontweight='bold')
-axes[1,0].axis('off')
-plt.colorbar(im, ax=axes[1,0], fraction=0.046, pad=0.04)
+im = axes[1, 0].imshow(cvi, origin="upper", aspect="equal", cmap=RISK_CMAP,
+                       interpolation="bilinear", vmin=0, vmax=1)
+axes[1, 0].set_title("CVI — pixel level", fontsize=10.5, fontweight="bold")
+_style_cb(plt.colorbar(im, ax=axes[1, 0], **_MAP_CB))
 
-# (1,1) CVI po regionu
-im = axes[1,1].imshow(region_cvi_map, origin='upper', aspect='equal',
-                      cmap=RISK_CMAP, interpolation='nearest', vmin=0, vmax=1)
-axes[1,1].set_title('CVI po SAM regionu', fontsize=11, fontweight='bold')
-axes[1,1].axis('off')
-plt.colorbar(im, ax=axes[1,1], fraction=0.046, pad=0.04)
+im = axes[1, 1].imshow(region_cvi_map, origin="upper", aspect="equal",
+                       cmap=RISK_CMAP, interpolation="nearest", vmin=0, vmax=1)
+axes[1, 1].set_title("Mean CVI per SAM region", fontsize=10.5, fontweight="bold")
+_style_cb(plt.colorbar(im, ax=axes[1, 1], **_MAP_CB))
 
-# (1,2) Dominantni rizik
-axes[1,2].imshow(risk_rgb, origin='upper', aspect='equal', interpolation='nearest')
-axes[1,2].set_title('Dominantni mehanizam degradacije', fontsize=11, fontweight='bold')
-axes[1,2].axis('off')
+axes[1, 2].imshow(risk_rgb, origin="upper", aspect="equal", interpolation="nearest")
+axes[1, 2].set_title("Dominant degradation mechanism",
+                     fontsize=10.5, fontweight="bold")
 
-fig.suptitle(f'SAM + CVI Pipeline — Kompletna analiza freske ({DATASET_LABEL})\n'
-             f'Meta Segment Anything Model + Chemical Vulnerability Index',
-             fontsize=15, fontweight='bold')
-plt.tight_layout()
-plt.savefig(os.path.join(IZLAZ, '6_kompletni_pregled.png'),
-            dpi=200, bbox_inches='tight')
+for ax in axes.flatten():
+    _blank(ax)
+
+fig.suptitle(f"SAM + CVI pipeline — full analysis ({DATASET})\n"
+             "Meta Segment Anything Model + Chemical Vulnerability Index",
+             fontsize=13, fontweight="bold")
+plt.savefig(os.path.join(OUT_DIR, "6_summary_panel.png"),
+            dpi=200, bbox_inches="tight", facecolor="white")
 plt.close()
-print("  Sacuvano: 6_kompletni_pregled.png")
+print("  Saved: 6_summary_panel.png")
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-#  TEKSTUALNI IZVESTAJ ZA RESTAURATORE
+#  CONSERVATOR REPORT
 # ═══════════════════════════════════════════════════════════════════════════════
 
-print("\nGenerisem tekstualni izvestaj...")
+print("\nWriting the conservator report...")
 
-report_text = f"""{'='*75}
-  IZVESTAJ O HEMIJSKOJ RANJIVOSTI FRESKE
-  Automatski generisan: SAM segmentacija + CVI analiza
-  Dataset: {DATASET_LABEL}
-{'='*75}
+RECOMMENDATION = {
+    "CRITICAL": "URGENT conservation assessment",
+    "ELEVATED": "Priority assessment, plan consolidation",
+    "MODERATE": "Preventive monitoring",
+    "LOW":      "No immediate risk, routine monitoring",
+}
 
-METODOLOGIJA:
-  - Segmentacija: Meta SAM (Segment Anything Model, ViT-B)
-  - Rizik: Chemical Vulnerability Index (CVI) — 5 pravila degradacije
-  - Ulaz: XRF mape 5 elemenata (Ca, Ti, Fe, Cu, Pb) — Sn iskljucen
-
-STATISTIKA:
-  - Ukupno piksela: {ROWS * COLS}
-  - SAM segmenata: {n_segments}
-  - Srednji CVI: {cvi.mean():.3f}
-  - Povisen rizik (CVI >= 0.5): {np.mean(cvi >= 0.5)*100:.1f}% povrsine
-  - Kritican rizik (CVI >= 0.75): {np.mean(cvi >= 0.75)*100:.1f}% povrsine
-
-{'='*75}
-  TOP REGIONI PO RIZIKU (preporuke za restauratore)
-{'='*75}
-"""
+report = [
+    "=" * 75,
+    "  CHEMICAL VULNERABILITY REPORT",
+    "  Auto-generated: SAM segmentation + CVI analysis",
+    f"  Dataset: {DATASET}",
+    "=" * 75,
+    "",
+    "METHODOLOGY:",
+    "  - Segmentation: Meta SAM (Segment Anything Model, ViT-B)",
+    "  - Risk: Chemical Vulnerability Index (CVI) — 5 degradation rules",
+    "  - Input: XRF maps of 5 elements (Ca, Ti, Fe, Cu, Pb) — Sn excluded",
+    "",
+    "STATISTICS:",
+    f"  - Total pixels: {ROWS * COLS}",
+    f"  - SAM segments: {n_segments}",
+    f"  - Mean CVI: {cvi.mean():.3f}",
+    f"  - Elevated risk (CVI >= 0.50): {np.mean(cvi >= 0.5) * 100:.1f}% of area",
+    f"  - Critical risk (CVI >= 0.75): {np.mean(cvi >= 0.75) * 100:.1f}% of area",
+    "",
+    "=" * 75,
+    "  TOP REGIONS BY RISK (conservation priorities)",
+    "=" * 75,
+]
 
 for i, r in enumerate(region_reports[:10]):
-    risk_level = 'KRITICAN' if r['cvi_mean'] >= 0.5 else \
-                 'UMEREN' if r['cvi_mean'] >= 0.25 else 'NIZAK'
+    level = region_level(r["cvi_mean"])
+    report += [
+        "",
+        f"  [{i + 1}] Region {r['id']}  —  {level}",
+        f"      Area: {r['area_px']} px ({r['area_pct']:.1f}%)",
+        f"      Material: {r['material']}",
+        f"      CVI: {r['cvi_mean']:.3f} (max {r['cvi_max']:.3f})",
+        f"      Risk: {r['dominant_risk']['id']} — {r['dominant_risk']['name']}",
+        f"            {r['dominant_risk']['desc']}",
+        f"      Recommendation: {RECOMMENDATION[level]}",
+    ]
 
-    if risk_level == 'KRITICAN':
-        preporuka = 'HITNA konzervatorska intervencija'
-    elif risk_level == 'UMEREN':
-        preporuka = 'Preventivni monitoring, planirati konsolidaciju'
-    else:
-        preporuka = 'Bez neposrednog rizika, standardni monitoring'
+report += ["", "=" * 75, "  RISK RULES LEGEND", "=" * 75]
+for p in RISK_RULES:
+    report += [f"  {p['id']}: {p['name']} (w={p['w']})",
+               f"      {p['desc']}", ""]
 
-    report_text += f"""
-  [{i+1}] Region {r['id']}  —  {risk_level}
-      Povrsina: {r['area_px']} piksela ({r['area_pct']:.1f}%)
-      Materijal: {r['material']}
-      CVI: {r['cvi_mean']:.3f} (max {r['cvi_max']:.3f})
-      Rizik: {r['dominant_risk']['id']} — {r['dominant_risk']['naziv']}
-             {r['dominant_risk']['opis']}
-      Preporuka: {preporuka}
-"""
-
-report_text += f"""
-{'='*75}
-  LEGENDA RIZIKA
-{'='*75}
-"""
-for p in PRAVILA_RIZIKA:
-    report_text += f"  {p['id']}: {p['naziv']} (w={p['w']})\n"
-    report_text += f"      {p['opis']}\n\n"
-
-report_path = os.path.join(IZLAZ, 'izvestaj_restauratori.txt')
-with open(report_path, 'w', encoding='utf-8') as f:
-    f.write(report_text)
-print(f"  Sacuvano: izvestaj_restauratori.txt")
+report_path = os.path.join(OUT_DIR, "conservation_report.txt")
+with open(report_path, "w", encoding="utf-8") as f:
+    f.write("\n".join(report))
+print(f"  Saved: conservation_report.txt")
 
 
-# ═══════════════════════════════════════════════════════════════════════════════
-#  ZAVRSETAK
-# ═══════════════════════════════════════════════════════════════════════════════
-
-print(f"\n{'='*75}")
-print(f"  SAM + CVI PIPELINE ZAVRSEN")
-print(f"  Rezultati: {os.path.abspath(IZLAZ)}/")
-print(f"  Slike: 6 vizualizacija")
-print(f"  Izvestaj: izvestaj_restauratori.txt")
-print(f"{'='*75}")
+print(f"\n{'=' * 75}")
+print("  SAM + CVI PIPELINE COMPLETE")
+print(f"  Results: {os.path.abspath(OUT_DIR)}{os.sep}")
+print("  Figures: 6 visualizations + conservation_report.txt")
+print(f"{'=' * 75}")
