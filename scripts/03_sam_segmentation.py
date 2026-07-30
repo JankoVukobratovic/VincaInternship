@@ -209,8 +209,30 @@ masks = sorted(masks, key=lambda x: x["area"], reverse=True)
 
 print("\nPost-processing masks...")
 
+def absorb_fragments(seg_map, min_px=5):
+    """Merge connected components smaller than min_px into their majority
+    neighbour segment (removes speckle left by overlap resolution)."""
+    from scipy.ndimage import label as cc_label, binary_dilation
+    changed = True
+    while changed:
+        changed = False
+        for sid in np.unique(seg_map):
+            cc, n_cc = cc_label(seg_map == sid)
+            for c in range(1, n_cc + 1):
+                comp = cc == c
+                if comp.sum() >= min_px:
+                    continue
+                ring = binary_dilation(comp) & ~comp
+                neigh = seg_map[ring]
+                neigh = neigh[neigh != sid]
+                if neigh.size:
+                    seg_map[comp] = np.bincount(neigh).argmax()
+                    changed = True
+    return seg_map
+
+
 segments = np.zeros((ROWS, COLS), dtype=int)
-segment_info = []
+quality = {}                                     # id -> (stability, iou)
 valid_id = 0
 
 for mask_data in masks:
@@ -224,32 +246,45 @@ for mask_data in masks:
             patch = mask_hr[r * SCALE:(r + 1) * SCALE, c * SCALE:(c + 1) * SCALE]
             mask_lr[r, c] = patch.mean() > 0.5
 
-    n_pixels = mask_lr.sum()
-    if n_pixels < 5:                              # discard tiny segments
+    # Larger segments win overlaps; a mask must still paint >= 5 native
+    # pixels of its own (measuring the raw mask instead lets 1-2 px
+    # leftover shards through as phantom segments).
+    painted = (segments == 0) & mask_lr
+    if painted.sum() < 5:                         # discard tiny segments
         continue
 
     valid_id += 1
-    unassigned = (segments == 0) & mask_lr        # larger segments win overlaps
-    segments[unassigned] = valid_id
-
-    segment_info.append({
-        "id": valid_id,
-        "area_px": int(n_pixels),
-        "area_pct": n_pixels / (ROWS * COLS) * 100,
-        "stability": mask_data["stability_score"],
-        "iou": mask_data["predicted_iou"],
-        "mask": mask_lr,
-    })
+    segments[painted] = valid_id
+    quality[valid_id] = (mask_data["stability_score"],
+                         mask_data["predicted_iou"])
 
 # Assign leftover pixels to the nearest segment
 unassigned_mask = segments == 0
-if unassigned_mask.any() and segment_info:
+if unassigned_mask.any() and valid_id:
     min_dist = np.full((ROWS, COLS), np.inf)
-    for seg in segment_info:
-        dist = distance_transform_edt(~seg["mask"])
+    for sid in range(1, valid_id + 1):
+        dist = distance_transform_edt(segments != sid)
         closer = dist < min_dist
-        segments[unassigned_mask & closer] = seg["id"]
+        segments[unassigned_mask & closer] = sid
         min_dist[unassigned_mask & closer] = dist[unassigned_mask & closer]
+
+# Remove speckle, then renumber the survivors consecutively
+segments = absorb_fragments(segments, min_px=5)
+
+segment_info = []
+for new_id, sid in enumerate(np.unique(segments), start=1):
+    mask = segments == sid
+    st, iou = quality.get(int(sid), (float("nan"), float("nan")))
+    segment_info.append({
+        "id": new_id,
+        "area_px": int(mask.sum()),
+        "area_pct": mask.sum() / (ROWS * COLS) * 100,
+        "stability": st,
+        "iou": iou,
+        "mask": mask,
+    })
+for seg in segment_info:
+    segments[seg["mask"]] = seg["id"]
 
 n_segments = len(segment_info)
 print(f"  Valid segments: {n_segments}")

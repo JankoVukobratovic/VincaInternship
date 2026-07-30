@@ -11,7 +11,7 @@ METHODOLOGY:
 
 STATISTICS:
   - Total pixels: 7200
-  - SAM segments: 18
+  - SAM segments: 9
   - Mean CVI: 0.441
   - Elevated risk (CVI >= 0.50): 33.9% of area
   - Critical risk (CVI >= 0.75): 6.0% of area
@@ -20,31 +20,23 @@ STATISTICS:
   TOP REGIONS BY RISK (conservation priorities)
 ===========================================================================
 
-  [1] Region 15  —  ELEVATED
-      Area: 1 px (0.0%)
-      Material: Lead white (Pb-based pigment)
-      CVI: 0.565 (max 0.565)
-      Risk: R3 — Lead white darkening (PbS)
-            PbCO3 -> PbS in the presence of sulfur compounds
-      Recommendation: Priority assessment, plan consolidation
-
-  [2] Region 5  —  ELEVATED
-      Area: 305 px (4.2%)
+  [1] Region 4  —  ELEVATED
+      Area: 306 px (4.2%)
       Material: Cu-based green pigment
       CVI: 0.533 (max 0.947)
       Risk: R2 — Cu-based green pigment degradation
             Basic copper carbonates transform in humid air
       Recommendation: Priority assessment, plan consolidation
 
-  [3] Region 8  —  ELEVATED
-      Area: 9 px (0.1%)
+  [2] Region 5  —  MODERATE
+      Area: 7 px (0.1%)
       Material: Cu-based green pigment
-      CVI: 0.520 (max 0.709)
+      CVI: 0.486 (max 0.615)
       Risk: R2 — Cu-based green pigment degradation
             Basic copper carbonates transform in humid air
-      Recommendation: Priority assessment, plan consolidation
+      Recommendation: Preventive monitoring
 
-  [4] Region 9  —  MODERATE
+  [3] Region 6  —  MODERATE
       Area: 167 px (2.3%)
       Material: Cu-based green pigment
       CVI: 0.466 (max 0.669)
@@ -52,52 +44,52 @@ STATISTICS:
             Basic copper carbonates transform in humid air
       Recommendation: Preventive monitoring
 
-  [5] Region 14  —  MODERATE
-      Area: 171 px (2.4%)
+  [4] Region 8  —  MODERATE
+      Area: 174 px (2.4%)
       Material: Lead white (Pb-based pigment)
-      CVI: 0.458 (max 0.687)
+      CVI: 0.456 (max 0.687)
       Risk: R3 — Lead white darkening (PbS)
             PbCO3 -> PbS in the presence of sulfur compounds
       Recommendation: Preventive monitoring
 
-  [6] Region 3  —  MODERATE
-      Area: 1781 px (24.7%)
+  [5] Region 3  —  MODERATE
+      Area: 1791 px (24.9%)
       Material: Lead white (Pb-based pigment)
-      CVI: 0.442 (max 0.972)
+      CVI: 0.441 (max 0.972)
       Risk: R3 — Lead white darkening (PbS)
             PbCO3 -> PbS in the presence of sulfur compounds
       Recommendation: Preventive monitoring
 
-  [7] Region 2  —  MODERATE
-      Area: 2223 px (30.9%)
+  [6] Region 2  —  MODERATE
+      Area: 2246 px (31.2%)
       Material: Lead white (Pb-based pigment)
-      CVI: 0.439 (max 0.971)
+      CVI: 0.437 (max 0.971)
       Risk: R3 — Lead white darkening (PbS)
             PbCO3 -> PbS in the presence of sulfur compounds
       Recommendation: Preventive monitoring
 
-  [8] Region 1  —  MODERATE
-      Area: 2339 px (32.5%)
+  [7] Region 1  —  MODERATE
+      Area: 2343 px (32.5%)
       Material: Cu-based green pigment
       CVI: 0.434 (max 0.924)
       Risk: R2 — Cu-based green pigment degradation
             Basic copper carbonates transform in humid air
       Recommendation: Preventive monitoring
 
-  [9] Region 13  —  MODERATE
-      Area: 1 px (0.0%)
-      Material: Titanium white ground (TiO2)
-      CVI: 0.382 (max 0.382)
-      Risk: R2 — Cu-based green pigment degradation
-            Basic copper carbonates transform in humid air
-      Recommendation: Preventive monitoring
-
-  [10] Region 17  —  MODERATE
+  [8] Region 9  —  MODERATE
       Area: 122 px (1.7%)
       Material: Cu-based green pigment
       CVI: 0.369 (max 0.499)
       Risk: R2 — Cu-based green pigment degradation
             Basic copper carbonates transform in humid air
+      Recommendation: Preventive monitoring
+
+  [9] Region 7  —  MODERATE
+      Area: 44 px (0.6%)
+      Material: Lime/chalk layer (CaCO3)
+      CVI: 0.368 (max 0.882)
+      Risk: R1 — TiO2/CaCO3 thermal mismatch
+            TiO2 layer over a CaCO3-bearing ground
       Recommendation: Preventive monitoring
 
 ===========================================================================

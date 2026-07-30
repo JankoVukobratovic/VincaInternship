@@ -133,11 +133,12 @@ def fig_nmf_components(nmf_res):
 
     for k in range(K):
         ax_sp = fig.add_subplot(gs[k, 0])
-        ax_sp.fill_between(energy, H[k], alpha=0.25, color=colors[k])
-        ax_sp.plot(energy, H[k], color=colors[k], linewidth=1.3)
-        ax_sp.set_xlim(1, 28)
+        h_plot = vuln.bridge_masked(H[k], energy)   # no gaps: straight bridges
+        ax_sp.fill_between(energy, h_plot, alpha=0.25, color=colors[k])
+        ax_sp.plot(energy, h_plot, color=colors[k], linewidth=1.3)
+        ax_sp.set_xlim(1, 15)
         ax_sp.grid(True, alpha=0.15)
-        ax_sp.set_ylabel("Intensity (a.u.)", fontsize=8)
+        ax_sp.set_ylabel("Intensity (CPS)", fontsize=8)
         ax_sp.tick_params(labelsize=7)
         letter(ax_sp, "abcdefgh"[k])
         if k == K - 1:
@@ -162,10 +163,9 @@ def fig_nmf_components(nmf_res):
                                xytext=(0, 3), textcoords="offset points")
 
         ax_map = fig.add_subplot(gs[k, 1])
-        m = nmf_res["maps"][:, :, k]
-        p99 = np.percentile(m, 99)
-        im = ax_map.imshow(m / max(p99, 1e-10), origin="upper", aspect="equal",
-                           cmap="inferno", interpolation="bilinear",
+        m = nmf_res["maps"][:, :, k]          # already P99-normalised
+        im = ax_map.imshow(np.clip(m, 0, 1), origin="upper", aspect="equal",
+                           cmap="hot", interpolation="bilinear",
                            vmin=0, vmax=1)
         blank(ax_map)
         cb = plt.colorbar(im, ax=ax_map, **_MAP_CB)
@@ -348,29 +348,64 @@ def run_sam(norm_maps):
     print(f"  SAM proposed {len(masks)} masks")
 
     segments = np.zeros((ROWS, COLS), dtype=int)
-    info = []
+    painted_masks = {}
     valid_id = 0
     for md in masks:
         hr = md["segmentation"]
         lr = hr.reshape(ROWS, SCALE, COLS, SCALE).mean(axis=(1, 3)) > 0.5
-        n_px = lr.sum()
-        if n_px < 5:
+        # Larger segments win overlaps; a mask must still paint >= 5 native
+        # pixels of its own (paper: segments < 5 px are discarded) --
+        # measuring the raw mask instead lets 1-2 px leftovers through.
+        painted = (segments == 0) & lr
+        if painted.sum() < 5:
             continue
         valid_id += 1
-        segments[(segments == 0) & lr] = valid_id
-        info.append({"id": valid_id, "mask": lr, "area_px": int(n_px)})
+        segments[painted] = valid_id
+        painted_masks[valid_id] = painted
 
     unassigned = segments == 0
-    if unassigned.any() and info:
+    if unassigned.any() and painted_masks:
         min_dist = np.full((ROWS, COLS), np.inf)
-        for seg in info:
-            dist = distance_transform_edt(~seg["mask"])
+        for sid, mask in painted_masks.items():
+            dist = distance_transform_edt(~mask)
             closer = dist < min_dist
-            segments[unassigned & closer] = seg["id"]
+            segments[unassigned & closer] = sid
             min_dist[unassigned & closer] = dist[unassigned & closer]
+
+    segments = absorb_fragments(segments, min_px=5)
+
+    # Renumber the surviving segments consecutively and rebuild their info
+    info = []
+    for new_id, sid in enumerate(np.unique(segments), start=1):
+        mask = segments == sid
+        info.append({"id": new_id, "mask": mask, "area_px": int(mask.sum())})
+    for seg in info:
+        segments[seg["mask"]] = seg["id"]
 
     print(f"  Valid segments: {len(info)}")
     return segments, info, rgb_input
+
+
+def absorb_fragments(segments, min_px=5):
+    """Merge connected components smaller than min_px into their majority
+    neighbour segment (removes speckle left by overlap resolution)."""
+    from scipy.ndimage import label as cc_label, binary_dilation
+    changed = True
+    while changed:
+        changed = False
+        for sid in np.unique(segments):
+            cc, n_cc = cc_label(segments == sid)
+            for c in range(1, n_cc + 1):
+                comp = cc == c
+                if comp.sum() >= min_px:
+                    continue
+                ring = binary_dilation(comp) & ~comp
+                neigh = segments[ring]
+                neigh = neigh[neigh != sid]
+                if neigh.size:
+                    segments[comp] = np.bincount(neigh).argmax()
+                    changed = True
+    return segments
 
 
 def fig_sam_segmentation(segments, info, cvi):
@@ -449,7 +484,10 @@ fig_element_maps.pdf
     (a) Ca Ka   (b) Ti Ka   (c) Fe Ka   (d) Cu Ka   (e) Pb La
 
 fig_nmf_components.png
-    NMF blind decomposition (K={nmf_res['K']}) of the prova1 spectra.
+    NMF blind decomposition (K={nmf_res['K']}) of the prova1 spectra
+    (CPS-normalised, 1-15 keV; acquisition-artifact bands - the Hg La/Lb
+    lines and the scatter tail above 12.95 keV - are zeroed before
+    factorization and drawn as straight bridging segments).
     Left column: spectral endmembers H_k with automatically identified
     emission lines annotated on the peaks. Right column: corresponding
     spatial abundance maps W_k, each normalised to its 99th percentile.
