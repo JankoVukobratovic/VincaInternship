@@ -1,0 +1,18 @@
+control (prova1 vs prova2, same geometry):
+control     sy= 1.0039 sx= 0.9996  sy/sx= 1.0043  ty= -0.29 tx= +0.17 rot=+0.00  ncc=0.9775  ->  theta= 5.29 deg
+
+joint (all elements), ruotato -> prova1:
+joint       sy= 1.0045 sx= 0.9962  sy/sx= 1.0083  ty=+11.04 tx=+38.83 rot=+0.81  ncc=0.9635  ->  theta= 7.36 deg
+
+triangle check, ruotato -> prova2:
+joint2      sy= 1.0006 sx= 0.9956  sy/sx= 1.0050  ty=+11.23 tx=+38.81 rot=+0.85  ncc=0.9660  ->  theta= 5.70 deg
+
+per-element refits (ruotato -> prova1):
+Ca          sy= 1.0042 sx= 0.9966  sy/sx= 1.0076  ty=+10.98 tx=+38.82 rot=+0.90  ncc=0.9770  ->  theta= 7.03 deg
+Ti          sy= 1.0065 sx= 0.9971  sy/sx= 1.0094  ty=+11.01 tx=+38.80 rot=+0.82  ncc=0.9170  ->  theta= 7.82 deg
+Fe          sy= 1.0071 sx= 0.9943  sy/sx= 1.0129  ty=+10.97 tx=+38.93 rot=+0.81  ncc=0.9714  ->  theta= 9.16 deg
+Cu          sy= 1.0022 sx= 0.9957  sy/sx= 1.0065  ty=+11.11 tx=+38.88 rot=+0.81  ncc=0.9732  ->  theta= 6.49 deg
+Pb          sy= 1.0058 sx= 0.9962  sy/sx= 1.0097  ty=+11.02 tx=+38.80 rot=+0.80  ncc=0.9799  ->  theta= 7.93 deg
+
+control sy/sx deviation from 1: 0.427%  (frontal session drift = precision floor)
+tilt angle: 7.7 +- 1.0 (element spread) +- 1.8 (registration floor) deg

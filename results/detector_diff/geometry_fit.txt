@@ -1,0 +1,17 @@
+tilt angle: 7.7 deg (estimated from foreshortening, +-2 deg)
+
+stage 1 -- detector part R_det(E), fit on frontal mean:
+  k      =   0.8229 +- 0.0011
+  d_abs  =    973.6 +- 1.1 um Be-equivalent
+  t_Si1  =    300.6 +- 0.8 um  (t_Si2 fixed at 500 um)
+  chi2/dof = 4022.4/5
+
+stage 2 -- geometric part delta(E), fit on tilt shift:
+  s (lever arm) = +0.475 +- 0.074 deg/deg  (mean take-off fixed at 45 deg)
+  Ec            =   3.75 +- 0.46 keV
+  c (offset)    = -0.0280 +- 0.0017
+  chi2/dof = 48.3/5
+
+GP cross-check of the tilt shift (RBF kernel, max marginal likelihood):
+  amp = 2.52%  length scale = 3.2 keV  fitted white noise = 1.62%
+  max |model - GP mean| / GP sigma over 3.7-14.8 keV: 0.88
