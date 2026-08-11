@@ -1,0 +1,13 @@
+Flat-field (geometric non-uniformity) of the ratio D10264/D19511
+from the 05b median-geometry maps (8 reliable lines).
+
+cross-scan reproducibility (prova1 vs prova2, 7200 px): r = 0.696
+
+map          RMS %  2.5th %  97.5th %
+prova1        9.61   -17.17    +17.24
+prova2        9.78   -17.15    +18.02
+combined      8.88   -15.94    +15.35
+
+combined map = flat-field correction: divide the per-pixel ratio
+(or reweight the fusion) by exp(map) to remove the geometric
+non-uniformity of the two channels.

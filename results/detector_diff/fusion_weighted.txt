@@ -1,0 +1,15 @@
+Energy-weighted fusion vs simple summing
+(weights from checkerboard A, metrics on checkerboard B;
+ cross-scan SNR and Pearson r, prova1 vs prova2)
+
+line   SNR d10264 SNR d19511   SNR sum   SNR wgt    gain   r sum   r wgt  w10264
+Ca          19.86       7.06     19.70     19.98   +1.4%  0.9907  0.9910    0.89
+Ti           9.91       5.05     10.48     10.73   +2.4%  0.9595  0.9626    0.79
+Fe           8.01       7.00      9.31      9.33   +0.2%  0.9926  0.9926    0.59
+Cu           7.12       5.96      8.12      8.21   +1.1%  0.9827  0.9829    0.59
+PbLl         3.95       3.96      5.51      5.52   +0.2%  0.9021  0.9025    0.49
+PbLa        31.79      32.28     34.95     34.96   +0.0%  0.9917  0.9917    0.50
+PbLb        28.50      29.68     32.83     32.84   +0.0%  0.9905  0.9905    0.47
+PbLg         8.46       9.69     12.65     12.67   +0.2%  0.9329  0.9332    0.41
+
+mean SNR gain over simple summing: +0.7%
