@@ -272,15 +272,17 @@ if __name__ == "__main__":
     # ---- 5 table ------------------------------------------------------
     s = blank_slide(prs)
     add_title(s, "The two channels disagree - up to sixfold")
+    # Ratios restricted to the registered overlap region (script 08):
+    # the full-frame values mixed in a field-of-view artifact.
     rows = [
-        ("Ca Kα", "3.69", "6.03", "+4.9 %", "13σ"),
-        ("Ti Kα", "4.51", "2.54", "+2.9 %", "5.6σ"),
-        ("Fe Kα", "6.40", "1.24", "+0.9 %", "2.4σ"),
-        ("Cu Kα", "8.04", "1.08", "−3.7 %", "8σ"),
-        ("Pb Ll", "9.19", "0.860", "+0.3 %", "0.4σ"),
-        ("Pb Lα", "10.54", "0.800", "−2.3 %", "13.5σ"),
-        ("Pb Lβ", "12.61", "0.727", "−2.2 %", "14σ"),
-        ("Pb Lγ", "14.77", "0.650", "−2.5 %", "8.5σ"),
+        ("Ca Kα", "3.69", "5.78", "+9.5 %", "24σ"),
+        ("Ti Kα", "4.51", "2.42", "+7.9 %", "13.5σ"),
+        ("Fe Kα", "6.40", "1.21", "+3.5 %", "9.2σ"),
+        ("Cu Kα", "8.04", "1.01", "+2.5 %", "4.6σ"),
+        ("Pb Ll", "9.19", "0.828", "+4.1 %", "5.6σ"),
+        ("Pb Lα", "10.54", "0.765", "+2.2 %", "11.5σ"),
+        ("Pb Lβ", "12.61", "0.699", "+1.8 %", "10.3σ"),
+        ("Pb Lγ", "14.77", "0.630", "+0.6 %", "1.8σ"),
     ]
     tbl = s.shapes.add_table(9, 5, Inches(0.7), Inches(1.6),
                              Inches(6.6), Inches(4.9)).table
@@ -307,21 +309,27 @@ if __name__ == "__main__":
     add_text(s, Inches(7.7), Inches(1.8), Inches(5.1), Inches(4.8),
              bullets([
                  (0, "Same pixels, same painting: the frontal ratio "
-                     "runs from 6.0 down to 0.65 across energy"),
+                     "runs from 5.8 down to 0.63 across energy"),
                  (0, "Frontal repeatability ≤ 1.4 % - the tilt "
-                     "moves the ratio 3-14σ above it"),
-                 (0, "The shift changes sign with energy - geometry, "
-                     "not drift"),
+                     "moves the ratio up to 24σ above it"),
+                 (0, "The shift decays monotonically with energy, "
+                     "+9.5 % → +0.6 % - geometry, not drift"),
+                 (0, "Ratios from the registered overlap region only: "
+                     "a crop test showed full-frame ratios mix in a "
+                     "field-of-view artifact"),
                  (0, "Four Pb lines share pixels and composition: a "
-                     "pure energy dependence, immune to the "
-                     "field-of-view objection"),
+                     "pure energy dependence"),
              ]), space_after=12)
     add_notes(s, "3:00-4:15\n"
               "Table 1 in one look. Two messages: the channels are far "
               "from interchangeable (6x at calcium), and tilting "
-              "produces a highly significant, sign-changing pattern. "
-              "The four lead lines are the internal control - same "
-              "pixels, same composition, only energy differs.")
+              "produces a highly significant, monotonically decaying "
+              "energy pattern. Mention the crop test: restricting to "
+              "the registered overlap removed a field-of-view "
+              "artifact - that is why these are the trustworthy "
+              "numbers. The four lead lines are the internal "
+              "control - same pixels, same composition, only energy "
+              "differs.")
 
     # ---- 6 stage 1 ----------------------------------------------------
     s = blank_slide(prs)
@@ -366,15 +374,15 @@ if __name__ == "__main__":
     pic.crop_left = 0.5
     add_text(s, Inches(7.35), Inches(1.9), Inches(5.4), Inches(4.8),
              bullets([
-                 (0, "Tilt shift of R: positive below 6 keV, zero "
-                     "crossing near 6.5 keV, negative plateau above"),
+                 (0, "Tilt shift of R: monotonic positive decay, "
+                     "+9.5 % at 3.7 keV → +0.6 % at 14.8 keV"),
                  (0, "Thick-sample fluorescence model; the tilt moves "
                      "the effective take-off angles"),
-                 (0, [("Lever arm s = 0.48 ± 0.07 ⇒ take-off "
-                       "shift 3.7° ± 0.6° at this tilt",
+                 (0, [("Lever arm s = 0.53 ± 0.10 ⇒ take-off "
+                       "shift 4.1° ± 0.8° at this tilt",
                        17, True, INK, False)]),
                  (0, [("Gaussian-process check (no physics inside): "
-                       "same shape, model within 0.9σ",
+                       "same shape, model within 1.1σ",
                        17, False, INK, False)]),
                  (0, [("⇒ the shape lives in the data, not in the "
                        "model", 17, True, ORANGE, False)]),
@@ -400,11 +408,12 @@ if __name__ == "__main__":
                  (0, "Register tilted ↔ frontal with independent "
                      "x/y scales: sy/sx = 1/cos θ - the unknown "
                      "step sizes cancel"),
-                 (0, [("θ = 7.7° ± 1.0° (elements) "
-                       "± 1.8° (floor)", 18, True, INK,
+                 (0, [("θ = 7.7° ± 1.0° ± 1.8° - an upper "
+                       "bound (θ ≲ 8°)", 18, True, INK,
                        False)]),
-                 (0, "Five elements agree; the three-scan consistency "
-                     "triangle closes"),
+                 (0, "A no-tilt control pair returns “5.3°”: "
+                     "foreshortening at this angle sits near the "
+                     "resolution floor"),
                  (0, "GAP"),
                  (0, [("Bonus: two “identical” frontal "
                        "sessions differ by 0.43 % in scale - a "
@@ -416,9 +425,12 @@ if __name__ == "__main__":
               "out we never needed it. The tilt compresses the image "
               "vertically, and the scan step sizes cancel in the "
               "scale ratio, so the angle falls out of registration: "
-              "7.7 degrees. The precision floor itself is a result: "
-              "it is the positioning drift between two nominally "
-              "identical sessions.")
+              "about 8 degrees. Be upfront: a control pair with no "
+              "tilt returns five degrees, so we quote it as an upper "
+              "bound until the instrument builder confirms. The "
+              "precision floor itself is a result: it is the "
+              "positioning drift between two nominally identical "
+              "sessions.")
 
     # ---- 9 what this buys --------------------------------------------
     s = blank_slide(prs)
@@ -459,12 +471,12 @@ if __name__ == "__main__":
                      "geometry-resolved characterization, with no "
                      "dedicated calibration measurements"),
                  (0, "Per-element efficiency ratios with "
-                     "uncertainties, spanning 6.0 to 0.65"),
+                     "uncertainties, spanning 5.8 to 0.63"),
                  (0, "Detector vs geometry cleanly separated; "
                      "effective take-off response 0.5°/° of "
-                     "tilt; matrix scale Ec = 3.75 keV"),
+                     "tilt; matrix scale Ec ≈ 3.6 keV"),
                  (0, [("The data self-report their geometry: tilt "
-                       "7.7°, session drift 0.43 %",
+                       "≲ 8°, session drift 0.43 %",
                        17, True, ORANGE, False)]),
                  (0, "GAP"),
                  (0, [("Data and code: github.com/JankoVukobratovic/"

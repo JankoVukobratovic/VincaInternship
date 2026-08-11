@@ -52,10 +52,15 @@ The tilt-shift panel also carries a nonparametric cross-check: a
 zero-mean Gaussian process with an RBF kernel, the measurement errors
 as noise and hyperparameters set by maximizing the marginal
 likelihood. If the parametric curve stays inside the GP band, the
-observed shape (positive at low E, zero crossing near 6.5 keV,
-negative plateau) is a property of the data, not of the model choice.
+observed shape (a monotonic positive decay, ~+9% at Ca Ka falling to
+~+1% at the Pb L lines) is a property of the data, not of the model
+choice.
 
-Input : results/detector_diff/efficiency_ratios.csv  (from script 06)
+Input : results/registration/overlap_ratios.csv  (from script 08).
+        The ratios are restricted to the registered overlap region:
+        the full-frame ratios of script 06 mix in a field-of-view
+        artifact (the apparent zero crossing of the tilt shift) that
+        the overlap crop removes.
 Output: results/detector_diff/geometry_fit.png
         results/detector_diff/geometry_fit.txt
 
@@ -71,14 +76,16 @@ import numpy as np
 from scipy.optimize import curve_fit, minimize
 
 OUTPUT_DIR = os.path.join("results", "detector_diff")
-CSV_IN     = os.path.join(OUTPUT_DIR, "efficiency_ratios.csv")
+CSV_IN     = os.path.join("results", "registration", "overlap_ratios.csv")
 
 # Estimated from the vertical foreshortening of the ruotato scan:
 # anisotropic registration onto the frontal scans gives sy/sx = 1/cos
 # (theta) with the unknown step sizes cancelling in the ratio.
 # Per-element spread gives +-1 deg; the prova1<->prova2 scale drift
-# (0.43%) adds ~+-2 deg systematic. Cross-check with the instrument
-# builder pending.
+# (0.43%) adds ~+-2 deg systematic. A no-tilt control pair returns
+# "5.3 deg", so foreshortening at this angle is near the resolution
+# floor: treat the value as an upper bound (theta <~ 8 deg) until the
+# instrument builder confirms the mounting angle.
 TILT_DEG = 7.7
 PHI0_DEG = 90.0   # frontal beam incidence (assumed normal)
 PSI_MEAN_DEG = 45.0  # nominal mean take-off angle, to be confirmed
@@ -183,15 +190,10 @@ if __name__ == "__main__":
 
     els = [r["element"] for r in rows]
     E   = np.array([float(r["kev"]) for r in rows])
-    r1  = np.array([float(r["R_prova1"]) for r in rows])
-    s1  = np.array([float(r["sig_prova1"]) for r in rows])
-    r2  = np.array([float(r["R_prova2"]) for r in rows])
-    s2  = np.array([float(r["sig_prova2"]) for r in rows])
+    rf     = np.array([float(r["R_frontal_overlap"]) for r in rows])
+    rf_err = np.array([float(r["sig_frontal_overlap"]) for r in rows])
     rr  = np.array([float(r["R_ruotato"]) for r in rows])
     sr  = np.array([float(r["sig_ruotato"]) for r in rows])
-
-    rf     = 0.5 * (r1 + r2)
-    rf_err = 0.5 * np.hypot(s1, s2)
 
     delta     = rr / rf - 1.0
     delta_err = (rr / rf) * np.hypot(sr / rr, rf_err / rf)
@@ -228,9 +230,9 @@ if __name__ == "__main__":
 
     lines = [
         f"tilt angle: {TILT_DEG:.1f} deg"
-        " (estimated from foreshortening, +-2 deg)",
+        " (from foreshortening; upper bound, see 07b)",
         "",
-        "stage 1 -- detector part R_det(E), fit on frontal mean:",
+        "stage 1 -- detector part R_det(E), fit on frontal overlap ratio:",
         f"  k      = {p1_opt[0]:8.4f} +- {p1_err[0]:.4f}",
         f"  d_abs  = {p1_opt[1]:8.1f} +- {p1_err[1]:.1f} um Be-equivalent",
         f"  t_Si1  = {p1_opt[2]:8.1f} +- {p1_err[2]:.1f} um"

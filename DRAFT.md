@@ -1,20 +1,27 @@
 # Draft — Results (dual-detector paper)
 
 Working text for the Results section, in paper order. Numbers come
-from `results/detector_diff/` (scripts 06, 07, 07b). Placeholders
-marked [TODO] wait for Person B's registration/non-uniformity results
-or for confirmation from the instrument builder.
+from `results/detector_diff/` (scripts 07, 07b) computed on the
+registered-overlap ratios of `results/registration/overlap_ratios.csv`
+(script 08); the full-frame ratios of script 06 are kept only for the
+frame-artifact comparison. Placeholders marked [TODO] wait for Person
+B's remaining results or for confirmation from the instrument builder.
 
 ## Per-element efficiency ratios
 
 The per-element count ratio R = det10264 / det19511 is strongly
-energy-structured: it falls monotonically from about 6 at the Ca Ka
-line (3.7 keV) to 0.65 at Pb Lg (14.8 keV), crossing unity near 8 keV
-(Table 1). The two frontal scans give ratios consistent to within
-their bootstrap errors for all reliable lines; K and Zn are excluded
-(overlapping lines / low counts). The two channels of the scanner are
-therefore far from interchangeable: the same pigment produces up to a
-sixfold different signal depending on which detector is read out.
+energy-structured: it falls monotonically from about 5.8 at the Ca Ka
+line (3.7 keV) to 0.63 at Pb Lg (14.8 keV), crossing unity near 8 keV
+(Table 1). All ratios are computed on the registered overlap region
+of the compared scans: a crop test showed that full-frame ratios mix
+in a field-of-view artifact (different frame coverage of the two
+scans), which in the tilted comparison is large enough to flip the
+sign of the shift for several lines. The two frontal scans give
+ratios consistent to within their bootstrap errors for all reliable
+lines; K and Zn are excluded (overlapping lines / low counts). The
+two channels of the scanner are therefore far from interchangeable:
+the same pigment produces up to a sixfold different signal depending
+on which detector is read out.
 
 ## Detector model
 
@@ -30,24 +37,26 @@ nominal head geometry with the instrument builder.]
 
 ## Tilt-induced shift and geometric model
 
-Tilting the canvas forward changes the ratio by up to a few percent —
-small, but 3-14 sigma significant thanks to the full-map statistics —
-with a characteristic energy structure: positive below 6 keV, a zero
-crossing near 6.5 keV, and a negative plateau above 10 keV (Fig. X,
-right). A thick-sample fluorescence model in which the tilt moves the
-two effective take-off angles antisymmetrically reproduces this
-shape. With a single tilt the individual take-off angles are not
-identifiable; the identifiable parameters are the lever arm
-s = 0.475 +- 0.074 (degrees of take-off change per degree of canvas
-tilt, i.e. an effective take-off shift of 3.7 +- 0.6 degrees at the
-measured tilt), the matrix-attenuation energy scale
-Ec = 3.75 +- 0.46 keV, and a solid-angle offset of -2.80 +- 0.17 %.
-A nonparametric Gaussian-process regression of the same data
-reproduces the shape independently, and the parametric curve stays
-within 0.9 sigma of the GP mean over the whole energy range — the
-shape is a property of the data, not of the model choice. Cu deviates
-from the smooth trend (-3.7 % against a predicted -1 %); a
-frame-coverage effect is the leading suspect. [TODO: crop test.]
+Tilting the canvas forward increases the ratio at every reliable
+line, with a monotonic energy structure: +9.5 % at Ca Ka decaying to
++0.6 % at Pb Lg (Fig. X, right), significant at up to 24 sigma
+against the frontal repeatability. (On full-frame ratios the shift
+appears to change sign near 6.5 keV; the overlap crop test shows this
+zero crossing is a frame-coverage artifact, resolving the Cu anomaly
+noted in an earlier draft.) A thick-sample fluorescence model in
+which the tilt moves the two effective take-off angles
+antisymmetrically reproduces this shape. With a single tilt the
+individual take-off angles are not identifiable; the identifiable
+parameters are the lever arm s = 0.53 +- 0.10 (degrees of take-off
+change per degree of canvas tilt, i.e. an effective take-off shift of
+4.1 +- 0.8 degrees at the nominal tilt), the matrix-attenuation
+energy scale Ec = 3.55 +- 0.48 keV, and a solid-angle offset of
++1.22 +- 0.19 %. The fit quality improves markedly over the
+full-frame version (chi2/dof 19.1/5 against 48.3/5). A nonparametric
+Gaussian-process regression of the same data reproduces the shape
+independently, and the parametric curve stays within 1.1 sigma of the
+GP mean over the whole energy range — the shape is a property of the
+data, not of the model choice.
 
 ## Tilt angle from foreshortening
 
@@ -57,9 +66,13 @@ by cos(theta), so registering the tilted scan onto a frontal scan
 with independent x/y scales measures the tilt through the scale ratio
 sy/sx = 1/cos(theta), with the unknown scan step sizes cancelling.
 Joint registration over five element maps gives theta = 7.7 +- 1.0
-(element spread) +- 1.8 (registration floor) degrees, and the
-three-scan consistency triangle closes to within the errors. The
-registration floor is itself a finding: two nominally identical
+(element spread) +- 1.8 (registration floor) degrees. Foreshortening
+at this angle sits near the resolution limit of the method: a no-tilt
+control pair (prova2 onto prova1) returns an apparent "5.3 degrees",
+so we quote the result as an upper bound (theta <~ 8 degrees) until
+the instrument builder confirms the mounting angle; the stage-2
+geometric fit uses the nominal 7.7 degrees as a conditional input.
+The registration floor is itself a finding: two nominally identical
 frontal scans differ in vertical scale by 0.43 %, a direct measure of
 the positioning/calibration drift between scanning sessions. [TODO:
 compare with the builder-confirmed angle if it arrives.]
