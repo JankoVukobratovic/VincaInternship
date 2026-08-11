@@ -11,3 +11,20 @@ combined      8.88   -15.94    +15.35
 combined map = flat-field correction: divide the per-pixel ratio
 (or reweight the fusion) by exp(map) to remove the geometric
 non-uniformity of the two channels.
+
+Overlap with the acquisition-artifact regions (the bands
+masked out of the NMF input). 'hot' = top-quartile pixels of
+the artifact map; 'border' = share of them in the outer
+6-pixel strip of the scan.
+
+artifact        r vs flat-field   hot %  rest %  border of hot
+Hg lines                 -0.236   -3.86   +0.93           6%  (grid 28%)
+scatter tail              0.855   +7.15   -2.65          47%  (grid 28%)
+
+The scatter-tail frame and the flat-field are the same
+spatial structure (r = 0.86): the ratio runs several percent
+high exactly where the scatter artifact is strong. The Hg
+rectangle is the complementary region and carries the
+opposite-signed deviation, but only weakly correlated
+(r = -0.24), so it is a consistent part of the same
+acquisition geometry rather than a second measurement of it.

@@ -1,0 +1,26 @@
+{
+ "history": [
+  {
+   "epoch": 0,
+   "train": 0.0013847840855305549,
+   "val": 0.0010663942157407291,
+   "lr": 0.001
+  },
+  {
+   "epoch": 1,
+   "train": 0.0005721282723243348,
+   "val": 0.0006847100485174451,
+   "lr": 0.001
+  }
+ ],
+ "best_epoch": 1,
+ "best_val": 0.0006847100485174451,
+ "global_scale": 668.3209838867188,
+ "warm_start": "experiments/A_scratch/checkpoints/best_model.pt",
+ "epochs_run": 2,
+ "batch_size": 64,
+ "lr": 0.001,
+ "fuse_weights": "invvar",
+ "loss_weight": "invvar",
+ "device": "mps"
+}

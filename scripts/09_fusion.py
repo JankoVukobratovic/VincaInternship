@@ -1,12 +1,18 @@
 """
 09_fusion.py
 ===============================================================================
-Energy-weighted fusion of the two detector channels vs. simple summing.
+Three levels of dual-detector fusion, on one metric: simple summing,
+inverse-variance weighting, and the learned Noise2Noise fusion.
 
 The per-element efficiency imbalance (Table 1: R = 5.8 at Ca Ka down to
 0.63 at Pb Lg) means the low-efficiency channel contributes mostly noise
 at some lines. Simple summing ignores that; inverse-variance weighting
-with per-element weights derived from the measured noise should not.
+with per-element weights derived from the measured noise should not. For
+pure Poisson counting with proportional efficiencies the plain sum is
+already a sufficient statistic (PLAN 8.5), so a weighting that only
+matches it is itself a result: the channels are Poisson-limited. Only
+the learned variant, which uses spectral structure rather than a scalar
+weight, can go beyond that.
 
 Method
 ------
@@ -20,13 +26,27 @@ other (B), so the comparison is not self-fitted.
   weight_d : 1 / noise_d^2
   sum      : map_10264 + map_19511          (what "summing" does)
   weighted : (w1*m_10264 + w2*a*m_19511) / (w1 + w2)
+  learned  : maps of the fused cubes from the N2N network, if exported
+             by xrf-denoise/scripts/07_train_cross_detector.py
 
-Metrics on B, per element and per variant (det1, det2, sum, weighted):
+Metrics per element and per variant:
   SNR = mean((v_p1 + v_p2)/2) / ( std(v_p1 - v_p2) / sqrt(2) )
   r   = Pearson correlation of v_p1 vs v_p2
+  cv_ratio, r_vs_sum : spatial contrast and shape of the variant's map
+             against the summed map -- a denoiser that simply blurs the
+             image also raises SNR, and these two columns catch it.
+
+Subsets: "all_px" is checkerboard B over the whole grid. When the
+network's held-out pixel list is present, every variant is also
+evaluated on "heldout_px" (checkerboard B restricted to the prova1
+validation blocks, which the network never saw); that is the row to
+quote for the learned variant. prova2 is a held-out scan for the
+network in both subsets.
 
 Input : Resources/aurora-antico1-{prova1,prova2}/{10264,19511}/None_N.mca
         (cubes cached as .npy after the first run)
+        xrf-denoise/data/processed/fused_{prova1,prova2}.npy   (optional)
+        xrf-denoise/data/processed/fused_heldout_px.json       (optional)
 Output: results/detector_diff/fusion_weighted.csv
         results/detector_diff/fusion_weighted.txt
 
@@ -36,6 +56,7 @@ Run from the project root:
 
 import csv
 import importlib
+import json
 import os
 import sys
 
@@ -59,6 +80,7 @@ LINES = ["Ca", "Ti", "Fe", "Cu", "PbLl", "PbLa", "PbLb", "PbLg"]
 
 OUT_DIR = os.path.join("results", "detector_diff")
 CUBE_CACHE = os.path.join("results", "vulnerability_mapping")
+FUSED_DIR = os.path.join("xrf-denoise", "data", "processed")
 
 _ELEMENTS_JSON = xrf_core.load_elements()
 
@@ -115,9 +137,47 @@ def snr_and_r(v1, v2, mask):
     return (signal / noise if noise > 0 else np.inf), r
 
 
+def fidelity_vs_sum(variant, reference, mask):
+    """Spatial contrast and shape of a variant's map against the sum.
+
+    Both maps are the prova1/prova2 average. cv_ratio compares the
+    coefficient of variation, so it is insensitive to the overall gain
+    difference between variants but drops below 1 as soon as a variant
+    flattens real structure; r_vs_sum checks the structure is the same
+    structure.
+    """
+    v = 0.5 * (variant["prova1"] + variant["prova2"])[mask]
+    s = 0.5 * (reference["prova1"] + reference["prova2"])[mask]
+    cv_v = np.std(v) / np.mean(v) if np.mean(v) > 0 else np.nan
+    cv_s = np.std(s) / np.mean(s) if np.mean(s) > 0 else np.nan
+    return float(cv_v / cv_s), float(np.corrcoef(v, s)[0, 1])
+
+
+def load_fused_maps():
+    """Line maps of the N2N-fused cubes, plus the held-out pixel mask."""
+    paths = {ds: os.path.join(FUSED_DIR, f"fused_{ds}.npy")
+             for ds in DATASETS}
+    if not all(os.path.exists(p) for p in paths.values()):
+        return None, None
+    fused = {}
+    for ds, p in paths.items():
+        print(f"  [{ds}/fused] extracting line maps...")
+        fused[ds] = extract_line_maps(np.load(p).astype(np.float64))
+
+    heldout = None
+    hp = os.path.join(FUSED_DIR, "fused_heldout_px.json")
+    if os.path.exists(hp):
+        with open(hp) as f:
+            rec = json.load(f)
+        heldout = np.zeros(ROWS * COLS, dtype=bool)
+        heldout[np.asarray(rec["val_indices"], dtype=int)] = True
+        heldout = heldout.reshape(ROWS, COLS)
+    return fused, heldout
+
+
 if __name__ == "__main__":
     print("=" * 70)
-    print("  ENERGY-WEIGHTED FUSION vs SIMPLE SUMMING")
+    print("  FUSION BENCHMARK: SUM vs WEIGHTED vs LEARNED")
     print("=" * 70)
 
     maps = {}                                      # (dataset, det) -> {line: map}
@@ -127,9 +187,18 @@ if __name__ == "__main__":
             print(f"  [{ds}/{det}] extracting line maps...")
             maps[(ds, det)] = extract_line_maps(cube)
 
+    fused_maps, heldout_mask = load_fused_maps()
+    if fused_maps is None:
+        print("  (no fused cubes yet - run xrf-denoise/scripts/"
+              "07_train_cross_detector.py for the learned variant)")
+
     rc = np.add.outer(np.arange(ROWS), np.arange(COLS))
     mask_A = (rc % 2) == 0                         # weight estimation
     mask_B = ~mask_A                               # evaluation
+
+    subsets = {"all_px": mask_B}
+    if heldout_mask is not None:
+        subsets["heldout_px"] = mask_B & heldout_mask
 
     results = []
     for key in LINES:
@@ -156,38 +225,84 @@ if __name__ == "__main__":
             "weighted": {ds: (w["d1"] * m1[ds] + w["d2"] * g2[ds])
                          / (w["d1"] + w["d2"]) for ds in DATASETS},
         }
+        if fused_maps is not None:
+            variants["learned"] = {ds: fused_maps[ds][key]
+                                   for ds in DATASETS}
 
-        row = {"line": key,
-               "alpha": alpha,
-               "w_share_10264": w["d1"] / (w["d1"] + w["d2"])}
-        for name, vv in variants.items():
-            snr, r = snr_and_r(vv["prova1"], vv["prova2"], mask_B)
-            row[f"snr_{name}"] = snr
-            row[f"r_{name}"] = r
-        row["snr_gain_pct"] = 100.0 * (row["snr_weighted"]
-                                       / row["snr_sum"] - 1.0)
-        results.append(row)
+        for subset, px in subsets.items():
+            row = {"subset": subset,
+                   "n_px": int(px.sum()),
+                   "line": key,
+                   "alpha": alpha,
+                   "w_share_10264": w["d1"] / (w["d1"] + w["d2"])}
+            for name, vv in variants.items():
+                snr, r = snr_and_r(vv["prova1"], vv["prova2"], px)
+                cv_ratio, r_sum = fidelity_vs_sum(vv, variants["sum"], px)
+                row[f"snr_{name}"] = snr
+                row[f"r_{name}"] = r
+                row[f"cv_ratio_{name}"] = cv_ratio
+                row[f"r_vs_sum_{name}"] = r_sum
+            row["snr_gain_pct"] = 100.0 * (row["snr_weighted"]
+                                           / row["snr_sum"] - 1.0)
+            if "learned" in variants:
+                row["snr_gain_learned_pct"] = 100.0 * (
+                    row["snr_learned"] / row["snr_sum"] - 1.0)
+            results.append(row)
 
     # ---- report --------------------------------------------------------
     os.makedirs(OUT_DIR, exist_ok=True)
+    has_learned = fused_maps is not None
     lines_out = [
-        "Energy-weighted fusion vs simple summing",
+        "Fusion benchmark: summing vs inverse-variance weighting"
+        + (" vs learned (N2N)" if has_learned else ""),
         "(weights from checkerboard A, metrics on checkerboard B;",
         " cross-scan SNR and Pearson r, prova1 vs prova2)",
-        "",
-        f"{'line':6s} {'SNR d10264':>10s} {'SNR d19511':>10s}"
-        f" {'SNR sum':>9s} {'SNR wgt':>9s} {'gain':>7s}"
-        f" {'r sum':>7s} {'r wgt':>7s} {'w10264':>7s}",
     ]
-    for row in results:
-        lines_out.append(
-            f"{row['line']:6s} {row['snr_det10264']:10.2f}"
-            f" {row['snr_det19511']:10.2f} {row['snr_sum']:9.2f}"
-            f" {row['snr_weighted']:9.2f} {row['snr_gain_pct']:+6.1f}%"
-            f" {row['r_sum']:7.4f} {row['r_weighted']:7.4f}"
-            f" {row['w_share_10264']:7.2f}")
-    mean_gain = np.mean([r["snr_gain_pct"] for r in results])
-    lines_out += ["", f"mean SNR gain over simple summing: {mean_gain:+.1f}%"]
+    for subset in subsets:
+        sub_rows = [r for r in results if r["subset"] == subset]
+        note = {
+            "all_px": "all pixels",
+            "heldout_px": "pixels the network never saw"
+                          " (prova1 validation blocks)",
+        }.get(subset, subset)
+        head = (f"{'line':6s} {'SNR d10264':>10s} {'SNR d19511':>10s}"
+                f" {'SNR sum':>9s} {'SNR wgt':>9s} {'gain':>7s}")
+        if has_learned:
+            head += (f" {'SNR lrn':>9s} {'gain':>7s}"
+                     f" {'cv lrn':>7s} {'r vs sum':>9s}")
+        head += f" {'r sum':>7s} {'w10264':>7s}"
+        lines_out += ["",
+                      f"[{subset}]  {note}, {sub_rows[0]['n_px']} px",
+                      head]
+        for row in sub_rows:
+            line = (f"{row['line']:6s} {row['snr_det10264']:10.2f}"
+                    f" {row['snr_det19511']:10.2f} {row['snr_sum']:9.2f}"
+                    f" {row['snr_weighted']:9.2f}"
+                    f" {row['snr_gain_pct']:+6.1f}%")
+            if has_learned:
+                line += (f" {row['snr_learned']:9.2f}"
+                         f" {row['snr_gain_learned_pct']:+6.1f}%"
+                         f" {row['cv_ratio_learned']:7.3f}"
+                         f" {row['r_vs_sum_learned']:9.4f}")
+            line += f" {row['r_sum']:7.4f} {row['w_share_10264']:7.2f}"
+            lines_out.append(line)
+        mg = np.mean([r["snr_gain_pct"] for r in sub_rows])
+        lines_out.append(f"  mean SNR gain over summing:"
+                         f" weighted {mg:+.1f}%")
+        if has_learned:
+            ml = np.mean([r["snr_gain_learned_pct"] for r in sub_rows])
+            mcv = np.mean([r["cv_ratio_learned"] for r in sub_rows])
+            lines_out[-1] += f", learned {ml:+.1f}%"
+            lines_out.append(
+                f"  learned map fidelity: mean cv ratio {mcv:.3f}"
+                " (1.0 = same spatial contrast as the summed map)")
+    if has_learned:
+        lines_out += [
+            "",
+            "cv ratio and r vs sum guard the SNR column: a network that"
+            " blurs the map would raise SNR while cv ratio falls well"
+            " below 1.",
+        ]
 
     print("\n".join(lines_out))
     with open(os.path.join(OUT_DIR, "fusion_weighted.txt"), "w") as f:

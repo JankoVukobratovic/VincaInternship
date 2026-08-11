@@ -80,6 +80,15 @@ compare with the builder-confirmed angle if it arrives.]
 ## Still to merge (Person B)
 
 - Registered detector-difference maps and the geometric
-  non-uniformity map (script 08+).
-- Learned fusion / ML results.
-- Final figure numbering and Table 1 formatting.
+  non-uniformity map (script 08+). Numbers ready in
+  `results/detector_diff/flatfield_map.txt`, including the overlap with
+  the scatter-tail artifact (r = 0.86) that ties the flat-field, the
+  masked artifact bands and the acquisition geometry into one story.
+- Learned fusion: benchmark table ready in
+  `results/detector_diff/fusion_weighted.txt` (summing vs
+  inverse-variance vs N2N; +5.4% mean SNR over summing on unseen
+  pixels, with the Ti and Ca caveats of PLAN 8.10). Prose still to
+  write.
+- Final figure numbering and Table 1 formatting. Table 1 rows are
+  emitted by script 07 into
+  `results/detector_diff/handoff2_ratio_curve.md`.

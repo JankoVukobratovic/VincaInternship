@@ -262,3 +262,54 @@ prostorno-ugaoni član) i dominantan apsorpcioni član b·μ̄(E).
 Handoff 1: f = 0.9995 ± 0.0058 (kontrola prova2: 0.9963) → nagib je
 mali, α ≲ 8°; skraćenje daje samo gornju granicu — Ridolfijev broj je
 presudan (`results/registration/handoff1_foreshortening.md`).
+
+### 8.8 Handoff 2 isporučen (2026-08-11)
+
+`07_geometry_fit.py` sada eksportuje glatku krivu
+`results/detector_diff/handoff2_ratio_curve.csv` (+ `.md` sa Tabelom 1):
+R(E) = R_det(E) × exp(GP na log-rezidualima), 2–20 keV, kolone `R`
+(frontalni skenovi), `R_sigma`, `R_model`, `R_tilt` (za ruotato, do
++10%). GP je regularizovan (belo šum fiksiran na 0.5%, dužina skale ≥
+1.5 keV): slobodan fit degeneriše, a skale ispod ~1 keV bi fitovale
+sistematiku prozora linija — rezidual je +6.1% na Cu i −5.2% na Pb Ll,
+tj. 11% preko 1.1 keV, što potvrđuje sumnju iz 8.2 na kontaminaciju Ll
+prozora. Zatvaranje na 8 izmerenih tačaka: max 0.31%.
+
+Provizorna kriva iz `efficiency_ratios.csv` (full-frame) se više ne
+koristi; N2N dataloader prima rečnik krivih po skenu.
+
+### 8.9 Flat-field vs. akvizicioni artefakt (dopuna 10)
+
+Kvantifikovano u `flatfield_map.txt`: scatter-rep okvir i flat-field su
+ista prostorna struktura (r = 0.855; odnos +7.2% u vrućim pikselima
+naspram −2.7% u ostatku; 47% vrućih piksela je u graničnom pojasu, pri
+osnovi 28%). Hg pravougaonik je komplementaran region sa suprotnim
+znakom (−3.9%), ali slabo korelisan (r = −0.236) i samo 6% u pojasu.
+Formulacija za rad: jedna akviziciona geometrija viđena iz dva ugla —
+ne dve nezavisne potvrde iste mape.
+
+### 8.10 Naučena fuzija — preliminarni brojevi (B4/B5, 2026-08-11)
+
+`xrf-denoise/scripts/07_train_cross_detector.py` (1D U-Net, warm start
+sa A_scratch, MSE maskiran na 3.5–15.5 keV, lr 3e-4, best epoch 2,
+laptop/MPS ~5 min). Dve stvari su bile presudne i obe slede iz R(E):
+
+1. **težinjenje gubitka** — skaliranje detektora B sa R množi varijansu
+   sa R², pa nekompenzovan MSE dominira niskim energijama i mreža
+   izgladi Ca mapu (cv odnos 0.45–0.67); težine 1/R (smer 0) i R
+   (smer 1) to poništavaju;
+2. **kombinovanje dva smera pri izlazu** — inverzno-varijansno R:1 po
+   kanalu, ne prosta sredina (na Ca to je 85:15, isto što klasična
+   fuzija nezavisno nalazi kao w = 0.89).
+
+Rezultat na pikselima koje mreža nije videla (prova1 val blokovi):
+srednji dobitak nad prostim zbirom **+5.4%** (naučena) naspram +0.9%
+(inverzno-varijansno ponderisanje); 6 od 8 linija pozitivno — Pb Ll
++28.8%, Pb Lγ +11.5%, Fe +11.0%, Pb Lβ +8.6%, Ca +5.3%, Cu +5.1%;
+Ti −22.6% i Pb Lα −4.5%. Na svim pikselima +6.1%.
+
+Uz SNR kolonu idu i dve kontrolne: `cv_ratio` (prostorni kontrast
+naspram sumirane mape, srednje 0.997 — dakle dobitak nije zamućenje) i
+`r_vs_sum` (≥ 0.98 svuda). Dve ostavke za B: Ti ima cv 1.32 (mreža tu
+pojačava šum) i Ca 0.75 (delimično glačanje), pa su ta dva broja još
+neupotrebljiva za tvrdnju.
