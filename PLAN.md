@@ -160,3 +160,105 @@ reproduktibilan.
   neuniformnosti.
 - Rečenicu o fuziji proširiti naučenom fuzijom (self-supervised,
   dva detektora kao nezavisne realizacije šuma).
+
+## 8. Amandmani posle fact-check-a (2026-08-09)
+
+Fact-check plana protiv stvarnog izlaza `06_efficiency_ratios.py`
+potvrdio je sve brojeve u Tabeli 1, energije linija, bootstrap i
+aritmetiku piksela. Sledeći amandmani ništa ne brišu iz plana —
+raspored, podela A/B i tačke primopredaje ostaju identični; menjaju se
+formulacije tvrdnji i po jedan detalj u tri zadatka (~1–2 dana ukupno).
+
+### 8.1 Značajnost: dodati sistematsku grešku (A, dopuna 06)
+
+Bootstrap σ je čisto statistički, a prova1↔prova2 se razlikuju ~2–4×
+više nego što bootstrap predviđa → postoji dan-za-dan sistematika.
+U `06_efficiency_ratios.py` dodati σ_sys ≈ |R₁−R₂|/√2 po elementu i
+prijaviti kombinovano σ = √(σ_stat² + σ_sys²). U tekstu rada glavna
+metrika je **pomeraj / ponovljivost = 2–12×**, ne "3–14σ". Fe (1.9×)
+i Pb Lγ (1.85×) označiti kao marginalne; fit ih koristi sa naduvanim
+greškama, ne izbacuje.
+
+### 8.2 Cu i Pb Ll outlieri (A, dopuna 07)
+
+Kriva tilt-pomeraja nije monotona: Cu (8.04 keV, −3.7%) je ispod
+visokoenergetskog platoa (−2.3%), a Pb Ll (9.19 keV, +0.3%) iznad.
+Tri poteza:
+
+1. fit sa svih 8 tačaka + **leave-one-out** stabilnost parametara;
+   reziduali Cu i Ll prijavljeni otvoreno;
+2. proveriti prozor Ll linije (rep Cu Kβ ~8.9 keV / Zn linija);
+3. Cu odstupanje uokviriti kao **signal dubine sloja** (element dublje
+   u stratigrafiji → jači apsorpcioni efekat) — pasus u Diskusiji,
+   veza sa ML regresijom lokalnog nagiba.
+
+### 8.3 Forward model: eksplicitan apsorpcioni član (A, izmena skice u §3.1.3)
+
+Prostorni uglovi su energetski nezavisni, a Be prozor se ne menja s
+nagibom — energetsku zavisnost tilt signala nosi apsorpcija duž
+izlaznog puta. Model:
+
+    Δln R(E) = a + b · μ̄(E)
+
+- `a` — konstantan geometrijski ofset (promena prostornih uglova);
+  visokoenergetski plato ≈ −2.3% ga direktno čita;
+- `b·μ̄(E)` — apsorpcioni član; μ̄(E) iz tabela (xraylib / NIST XCOM)
+  za pretpostavljenu matricu (npr. olovna bela).
+
+Obavezna **analiza osetljivosti na izbor matrice** (olovna bela vs.
+kalcitna osnova). Iz `a` i `b` slede efektivni uglovi. GP ostaje kao
+neparametarska kontrola.
+
+### 8.4 N2N skaliranje i handoff 2 (B, dopuna §4.3–4.4)
+
+Dva detektora nisu realizacije *istog* signala (R ide 0.65–6.06 preko
+spektra) — jesu uslovno nezavisne Poisson realizacije *različitih*
+odziva. Zato:
+
+- **handoff 2 postaje: Tabela 1 + glatka R(E) kriva iz GP fita**
+  (CSV po kanalima); dataloader skalira target kanal-po-kanal sa R(E),
+  ne per-element skalarima;
+- **loss maskirati na ~3.5–15.5 keV** (van toga je ekstrapolacija
+  krive);
+- u radu pošteno uokviriti: evaluacija na prova2 testira generalizaciju
+  preko realizacija šuma na istoj slici, ne preko sadržaja.
+
+### 8.5 Benchmark fuzije: bez unapred obećane hijerarhije (B, izmena §4.5)
+
+Za čist Poisson sa proporcionalnim efikasnostima **prost zbir je
+sufficient statistic** — nijedno linearno ponderisanje ga ne može
+pobediti. Benchmark zato glasi: (1) zbir = teorijski optimalna
+linearna baseline; (2) inverse-variance = provera ne-Poisson
+komponente (≈ zbir je takođe nalaz: "detektori su Poisson-limitirani");
+(3) naučena fuzija = jedini kandidat koji dodaje vrednost (spektralni/
+prostorni prior). Figura ima poentu koji god rezultat izađe.
+
+### 8.6 Jeftini dodaci
+
+- Posle registracije (08) preračunati frontalni R **samo na
+  preklapajućem regionu** → prigovor "drugi kadar" pada u potpunosti.
+- K liniju prikazati na figuri kao otvoren marker (isključena iz
+  fita): +20% na 3.3 keV kvalitativno pojačava niskoenergetski trend.
+- N2N novitet formulisati kao "primena na MA-XRF" (analogije postoje u
+  cryo-EM / CT even-odd split), ne "prvi put ikada".
+
+### 8.7 Nalaz iz registracije (B1 urađeno, 2026-08-09) — VAŽNO ZA OSOBU A
+
+`scripts/08_registration.py` (NCC 0.965): ruotato je **isti korak
+skeniranja, samo pomeren kadar** (sx≈sy≈1.00, rotacija 1.4°, pomeraj
+~18 px; pokriva 48% frontalnog kadra) — ne umanjena slika, kako je
+pretpostavljao `compare_Ti.py` (ta figura poredi neregistrovan sadržaj
+i ne treba je koristiti).
+
+Posledica overlap poređenja (amandman 8.6): **prividni prolazak kroz
+nulu u Tabeli 1 bio je artefakt kadra**. Na preklapajućem regionu tilt
+pomeraj je monoton pozitivan pad sa energijom: Ca +9.5% (24σ),
+Ti +7.9%, Fe +3.5%, Cu +2.5%, Pb Lα +2.2%, Pb Lβ +1.8%, Pb Lγ +0.6%;
+K +21% nastavlja trend. Cu više NIJE outlier; Pb Ll (+4.1%) ostaje.
+→ **Fit u 07 raditi na `results/registration/overlap_ratios.csv`**, ne
+na `efficiency_ratios.csv`; u modelu iz 8.3 očekivati a ≈ 0 (mali
+prostorno-ugaoni član) i dominantan apsorpcioni član b·μ̄(E).
+
+Handoff 1: f = 0.9995 ± 0.0058 (kontrola prova2: 0.9963) → nagib je
+mali, α ≲ 8°; skraćenje daje samo gornju granicu — Ridolfijev broj je
+presudan (`results/registration/handoff1_foreshortening.md`).
