@@ -2,25 +2,95 @@
  "history": [
   {
    "epoch": 0,
-   "train": 0.0013847840855305549,
-   "val": 0.0010663942157407291,
-   "lr": 0.001
+   "train": 0.000645,
+   "val": 0.000303,
+   "lr": 0.0003
   },
   {
    "epoch": 1,
-   "train": 0.0005721282723243348,
-   "val": 0.0006847100485174451,
-   "lr": 0.001
+   "train": 0.000361,
+   "val": 0.000292,
+   "lr": 0.0003
+  },
+  {
+   "epoch": 2,
+   "train": 0.000331,
+   "val": 0.000217,
+   "lr": 0.0003
+  },
+  {
+   "epoch": 3,
+   "train": 0.000302,
+   "val": 0.000324,
+   "lr": 0.0003
+  },
+  {
+   "epoch": 4,
+   "train": 0.000307,
+   "val": 2.634858,
+   "lr": 0.0003
+  },
+  {
+   "epoch": 5,
+   "train": 0.000382,
+   "val": 0.000291,
+   "lr": 0.0003
+  },
+  {
+   "epoch": 6,
+   "train": 0.0003,
+   "val": 0.000376,
+   "lr": 0.0003
+  },
+  {
+   "epoch": 7,
+   "train": 0.000265,
+   "val": 0.000315,
+   "lr": 0.0003
+  },
+  {
+   "epoch": 8,
+   "train": 0.000257,
+   "val": 0.000418,
+   "lr": 0.0003
+  },
+  {
+   "epoch": 9,
+   "train": 0.000254,
+   "val": 0.000353,
+   "lr": 0.0003
+  },
+  {
+   "epoch": 10,
+   "train": 0.000247,
+   "val": 0.000372,
+   "lr": 0.0003
+  },
+  {
+   "epoch": 11,
+   "train": 0.000236,
+   "val": 0.000425,
+   "lr": 0.0003
+  },
+  {
+   "epoch": 12,
+   "train": 0.000229,
+   "val": 0.00036,
+   "lr": 0.0003
   }
  ],
- "best_epoch": 1,
- "best_val": 0.0006847100485174451,
+ "best_epoch": 2,
+ "best_val": 0.000217,
  "global_scale": 668.3209838867188,
  "warm_start": "experiments/A_scratch/checkpoints/best_model.pt",
- "epochs_run": 2,
+ "epochs_run": 13,
  "batch_size": 64,
- "lr": 0.001,
+ "lr": 0.0003,
+ "patience": 10,
  "fuse_weights": "invvar",
  "loss_weight": "invvar",
- "device": "mps"
+ "device": "mps",
+ "seed": 42,
+ "checkpoint_saved": "2026-08-11T22:28:15",
+ "note": "Transcribed from the run log: a later --smoke invocation overwrote this file before the fix; the checkpoint itself is the epoch-2 model of this run. Epoch 4 shows an MPS loss spike (val 2.63) that the run recovered from."
 }

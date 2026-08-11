@@ -279,8 +279,11 @@ if __name__ == "__main__":
             print(f"  early stop (no improvement in {args.patience} epochs)")
             break
 
-    if args.export_only:
-        print(f"export-only: reusing {ckpt_path.relative_to(PROJECT_ROOT)}")
+    if args.export_only or args.smoke:
+        # a smoke run must not overwrite the record of a real run either
+        print(f"{'export-only' if args.export_only else 'smoke'}:"
+              f" {ckpt_path.relative_to(PROJECT_ROOT)},"
+              " history.json left untouched")
     else:
         print(f"best val {best_val:.6f} at epoch {best_epoch}"
               f"  -> {ckpt_path.relative_to(PROJECT_ROOT)}")
