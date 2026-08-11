@@ -5,13 +5,15 @@ Noise2Noise pairs (PLAN §4.3 + amendment 8.4).
 Loads full spectral cubes for prova1, prova2 and the tilted ruotato
 scan (both detectors each), assembles the per-scan split — training on
 prova1 + ruotato with spatial-block validation, external evaluation on
-prova2 — builds the provisional R(E) target-scaling curve from 06's
-efficiency-ratio table, and sanity-checks batches through UNet1D.
+prova2 — loads the R(E) target-scaling curves (handoff 2 if present,
+otherwise the provisional per-element table), and sanity-checks batches
+through UNet1D.
 
 Outputs:
     data/processed/<scan>_<det>_raw.npy         spectral cube caches
     data/processed/cross_detector_split.json    split record
-    data/processed/ratio_curve_provisional.npy  provisional R(E), (C,)
+    data/processed/ratio_curve_handoff2.npz     R(E) frontal + tilted
+    data/processed/ratio_curve_provisional.npy  fallback R(E), (C,)
 
 Run from xrf-denoise/:
     python scripts/06_cross_detector_pairs.py
@@ -33,7 +35,9 @@ from src.data.loader import load_datacube
 from src.data.cross_detector import (
     XRFCrossDetectorDataset,
     build_cross_detector_splits,
+    clamp_curve_to_mask,
     make_channel_mask,
+    ratio_curve_from_csv,
     ratio_curve_from_table,
 )
 from src.models.unet1d import UNet1D
@@ -47,6 +51,8 @@ SCANS = {
     "ruotato": (["antico1-prova4-ruotato", "aurora-antico1-ruotato"], 45, 80),
 }
 RATIO_TABLE = VINCA_ROOT / "results" / "detector_diff" / "efficiency_ratios.csv"
+HANDOFF2_CURVE = (VINCA_ROOT / "results" / "detector_diff"
+                  / "handoff2_ratio_curve.csv")
 
 
 def resolve_scan_dir(names: list[str]) -> Path:
@@ -90,17 +96,39 @@ if __name__ == "__main__":
         scan_specs, seed=cfg.seed,
     )
 
-    # ── 3. provisional ratio curve + loss mask ──────────────────
-    curve = ratio_curve_from_table(
-        RATIO_TABLE, n_ch, cfg.cal_slope, cfg.cal_intercept,
-    )
-    np.save(processed / "ratio_curve_provisional.npy", curve)
+    # ── 3. ratio curve(s) + loss mask ───────────────────────────
+    # Handoff 2 if it is there (smooth R(E) from the registered-overlap
+    # fit, with a separate column for the tilted scan), otherwise the
+    # provisional per-element interpolation of the full-frame table.
     mask = make_channel_mask(n_ch, cfg.cal_slope, cfg.cal_intercept)
-    print(f"\nR(E) provisional curve: min={curve.min():.3f} max={curve.max():.3f}")
+
+    if HANDOFF2_CURVE.exists():
+        frontal = clamp_curve_to_mask(ratio_curve_from_csv(
+            HANDOFF2_CURVE, n_ch, cfg.cal_slope, cfg.cal_intercept), mask)
+        tilted = clamp_curve_to_mask(ratio_curve_from_csv(
+            HANDOFF2_CURVE, n_ch, cfg.cal_slope, cfg.cal_intercept,
+            r_col="R_tilt"), mask)
+        curve = {"prova1": frontal, "prova2": frontal, "ruotato": tilted}
+        np.savez(processed / "ratio_curve_handoff2.npz",
+                 frontal=frontal, tilted=tilted)
+        print(f"\nR(E) from handoff 2 ({HANDOFF2_CURVE.name}):")
+        print(f"  frontal: min={frontal.min():.3f} max={frontal.max():.3f}")
+        print(f"  tilted : min={tilted.min():.3f} max={tilted.max():.3f}"
+              f"  (max tilt shift {100 * (tilted / frontal - 1).max():+.1f}%)")
+        curve_ref = frontal
+    else:
+        curve = ratio_curve_from_table(
+            RATIO_TABLE, n_ch, cfg.cal_slope, cfg.cal_intercept,
+        )
+        np.save(processed / "ratio_curve_provisional.npy", curve)
+        print(f"\nR(E) PROVISIONAL curve (handoff 2 missing): "
+              f"min={curve.min():.3f} max={curve.max():.3f}")
+        curve_ref = curve
+
     print(f"loss mask: {mask.sum()}/{n_ch} channels "
           f"({cfg.cal_intercept + 0 * cfg.cal_slope:.1f}"
-          f"–{cfg.cal_intercept + (n_ch - 1) * cfg.cal_slope:.1f} keV axis, "
-          f"window 3.5–15.5 keV)")
+          f"-{cfg.cal_intercept + (n_ch - 1) * cfg.cal_slope:.1f} keV axis, "
+          f"window 3.5-15.5 keV)")
 
     # global scale: keep inputs O(1) — 99.9th percentile of train counts
     sample = splits["train"][0][1][::37].ravel()
@@ -116,7 +144,7 @@ if __name__ == "__main__":
     }
     for name, ds in datasets.items():
         print(f"  {name:5s}: {len(ds):6d} examples "
-              f"({len(ds) // 2} px × 2 directions)")
+              f"({len(ds) // 2} px x 2 directions)")
     ds_total = sum(len(d) for d in datasets.values())
     print(f"  total: {ds_total} (PLAN: ~36 000)")
 
@@ -138,7 +166,7 @@ if __name__ == "__main__":
             out = model(x)
         assert out.shape == x.shape, (name, out.shape)
         m = ds.loss_mask
-        print(f"  {name:5s}: batch OK  x∈[{x.min():.3f},{x.max():.3f}]  "
+        print(f"  {name:5s}: batch OK  x in [{x.min():.3f},{x.max():.3f}]  "
               f"masked-loss channels={int(m.sum())}  "
               f"unet out {tuple(out.shape)}")
 
@@ -150,6 +178,6 @@ if __name__ == "__main__":
     sl = slice(ca_ch - 5, ca_ch + 6)
     print(f"\nCa-window sanity (pixel {j}, {scan}): "
           f"A={a[sl].sum():.0f}  B={b[sl].sum():.0f}  "
-          f"B×R={float((b * curve)[sl].sum()):.0f}  (should approach A)")
+          f"BxR={float((b * curve_ref)[sl].sum()):.0f}  (should approach A)")
 
     print("\nSmoke test passed.")

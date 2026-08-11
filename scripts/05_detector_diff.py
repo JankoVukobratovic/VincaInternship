@@ -72,11 +72,11 @@ if __name__ == "__main__":
         scan_dir = resolve_scan_dir(names)
         cached   = all(cache_complete(f"{scan}_{det}", el_keys) for det in DETECTORS)
         if scan_dir is None and not cached:
-            print(f"NOTE: '{scan}' skipped — no npy cache and no raw data for "
+            print(f"NOTE: '{scan}' skipped - no npy cache and no raw data for "
                   f"{names} (see README: Setup / Raw MCA data).")
             continue
 
-        print(f"\n=== {scan}  ({width}×{height} px) ===")
+        print(f"\n=== {scan}  ({width}x{height} px) ===")
         disp_cubes, disp_keys = {}, None
         for det in DETECTORS:
             label  = f"{scan}_{det}"

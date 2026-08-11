@@ -354,7 +354,7 @@ f = cos(alpha):
     fig.savefig(qa_path, dpi=130, bbox_inches="tight")
     plt.close(fig)
 
-    print(f"\nf = sx/sy = {f_joint:.4f} ± {f_sigma:.4f}   "
+    print(f"\nf = sx/sy = {f_joint:.4f} +- {f_sigma:.4f}   "
           f"(control: {f_ctl:.4f})   implied tilt = {alpha:.1f}°")
     for path in (par_path, csv_path, handoff, qa_path):
         print(f"Saved: {path}")

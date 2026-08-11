@@ -15,3 +15,8 @@ stage 2 -- geometric part delta(E), fit on tilt shift:
 GP cross-check of the tilt shift (RBF kernel, max marginal likelihood):
   amp = 5.97%  length scale = 3.9 keV  fitted white noise = 0.58%
   max |model - GP mean| / GP sigma over 3.7-14.8 keV: 1.08
+
+handoff 2 -- smooth R(E) = R_det(E) * exp(GP residual):
+  GP on log-residuals: amp = 9.09%  length scale = 1.5 keV  (floor 1.5 keV)  white noise pinned at 0.5%
+  closure at the 8 measured lines: max 0.31%, mean 0.14%
+  exported on 2-20 keV (901 points, 0.02 keV step); R_tilt column for the ruotato pixels

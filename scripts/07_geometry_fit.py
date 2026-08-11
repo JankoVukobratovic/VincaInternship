@@ -56,6 +56,19 @@ observed shape (a monotonic positive decay, ~+9% at Ca Ka falling to
 ~+1% at the Pb L lines) is a property of the data, not of the model
 choice.
 
+Handoff 2 (A -> B, PLAN amendment 8.4): the script also exports the
+smooth response-ratio curve R(E) that the Noise2Noise dataloader needs
+for channel-by-channel target scaling. It is built as
+
+    R(E) = R_det(E) * exp(GP residual)
+
+i.e. the parametric stage-1 curve corrected by a zero-mean GP fitted to
+the log-residuals of the eight measured lines. The GP alone would revert
+to R = 1 outside the data range; anchoring it on the physics model keeps
+the extrapolation sane, while inside 3.7-14.8 keV the curve follows the
+measurements. The tilted-scan column R_tilt(E) = R(E) * (1 + delta(E))
+scales the ruotato pixels, whose ratio is up to 9.5% higher.
+
 Input : results/registration/overlap_ratios.csv  (from script 08).
         The ratios are restricted to the registered overlap region:
         the full-frame ratios of script 06 mix in a field-of-view
@@ -63,6 +76,8 @@ Input : results/registration/overlap_ratios.csv  (from script 08).
         the overlap crop removes.
 Output: results/detector_diff/geometry_fit.png
         results/detector_diff/geometry_fit.txt
+        results/detector_diff/handoff2_ratio_curve.csv
+        results/detector_diff/handoff2_ratio_curve.md
 
 Run from the project root:
     python scripts/07_geometry_fit.py
@@ -88,6 +103,17 @@ CSV_IN     = os.path.join("results", "registration", "overlap_ratios.csv")
 # instrument builder confirms the mounting angle.
 TILT_DEG = 7.7
 PHI0_DEG = 90.0   # frontal beam incidence (assumed normal)
+
+# handoff-2 export grid (keV). The upper end is where the NIST grid below
+# stops; the N2N loss window is 3.5-15.5 keV, well inside.
+HANDOFF_LO_KEV   = 2.0
+HANDOFF_HI_KEV   = 20.0
+HANDOFF_STEP_KEV = 0.02
+# regularization of the GP correction (see the handoff block below):
+# white noise pinned at the frontal repeatability floor, length scale
+# floored so the curve cannot chase line-window systematics.
+HANDOFF_JITTER      = 0.005
+HANDOFF_ELL_MIN_KEV = 1.5
 PSI_MEAN_DEG = 45.0  # nominal mean take-off angle, to be confirmed
 T_SI2_UM = 500.0  # fixed reference Si thickness for det 19511, um
 RHO_BE   = 1.848  # g/cm3
@@ -137,7 +163,7 @@ def tilt_shift(E, s, ec, c):
     return (1.0 + c) * g / g0 - 1.0
 
 
-def gp_regress(x, y, yerr, xs):
+def gp_regress(x, y, yerr, xs, fixed_jit=None, ell_min=0.0):
     """Zero-mean GP regression with RBF kernel.
 
     The noise is yerr plus a fitted white-noise term: the bootstrap
@@ -147,11 +173,26 @@ def gp_regress(x, y, yerr, xs):
     scale that just interpolates the points. Hyperparameters
     (amplitude, length scale, white noise) by maximum marginal
     likelihood over a few starts. Returns mean and sigma on xs.
+
+    ``fixed_jit`` pins the white-noise term instead of fitting it and
+    ``ell_min`` puts a floor under the length scale; both are used for
+    the handoff-2 curve, where the free fit degenerates (all structure
+    absorbed into white noise, amplitude -> 0) and where length scales
+    below ~1 keV would fit line-window systematics rather than detector
+    response.
     """
     d2 = (x[:, None] - x[None, :]) ** 2
 
+    def unpack(logp):
+        if fixed_jit is None:
+            amp, ell, jit = np.exp(logp)
+        else:
+            amp, ell = np.exp(logp)
+            jit = fixed_jit
+        return amp, ell_min + ell, jit
+
     def nll(logp):
-        amp, ell, jit = np.exp(logp)
+        amp, ell, jit = unpack(logp)
         K = amp ** 2 * np.exp(-0.5 * d2 / ell ** 2)
         K[np.diag_indices_from(K)] += yerr ** 2 + jit ** 2
         try:
@@ -161,12 +202,15 @@ def gp_regress(x, y, yerr, xs):
         a = np.linalg.solve(L.T, np.linalg.solve(L, y))
         return 0.5 * y @ a + np.log(np.diag(L)).sum()
 
+    starts = ([0.05, 2.0, 0.01], [0.05, 5.0, 0.005], [0.2, 3.0, 0.02])
+    if fixed_jit is not None:
+        starts = tuple(p[:2] for p in starts)
     best = None
-    for p0 in ([0.05, 2.0, 0.01], [0.05, 5.0, 0.005], [0.2, 3.0, 0.02]):
+    for p0 in starts:
         r = minimize(nll, np.log(p0), method="Nelder-Mead")
         if best is None or r.fun < best.fun:
             best = r
-    amp, ell, jit = np.exp(best.x)
+    amp, ell, jit = unpack(best.x)
 
     K = amp ** 2 * np.exp(-0.5 * d2 / ell ** 2)
     K[np.diag_indices_from(K)] += yerr ** 2 + jit ** 2
@@ -228,6 +272,33 @@ if __name__ == "__main__":
         (tilt_shift(Ef[in_data], *p2_opt) - gp_mean[in_data])
         / gp_sig[in_data]))
 
+    # ---- handoff 2: smooth R(E) for the N2N target scaling -------------
+    # GP on the log-residuals of the stage-1 model: the parametric curve
+    # carries the extrapolation, the GP absorbs what the three-parameter
+    # detector model cannot reproduce (chi2/dof above is large because
+    # the bootstrap errors are ~0.1%).
+    #
+    # The residuals reach +6.1% at Cu and -5.2% at Pb Ll, i.e. 11% across
+    # 1.1 keV -- too fast for an efficiency ratio and consistent with the
+    # suspected contamination of the Ll window (PLAN 8.2). The GP is
+    # therefore regularized: white noise pinned at the frontal
+    # repeatability floor and length scales below HANDOFF_ELL_MIN_KEV
+    # forbidden, so the exported curve smooths through such pairs instead
+    # of writing them into the target scaling.
+    log_res     = np.log(rf) - np.log(det_ratio(E, *p1_opt))
+    log_res_err = rf_err / rf
+    Eh = np.arange(HANDOFF_LO_KEV, HANDOFF_HI_KEV + 1e-9, HANDOFF_STEP_KEV)
+    res_mean, res_sig, res_amp, res_ell, res_jit = gp_regress(
+        E, log_res, log_res_err, Eh,
+        fixed_jit=HANDOFF_JITTER, ell_min=HANDOFF_ELL_MIN_KEV)
+    r_model  = det_ratio(Eh, *p1_opt)
+    r_smooth = r_model * np.exp(res_mean)
+    r_sigma  = r_smooth * res_sig
+    r_tilt   = r_smooth * (1.0 + tilt_shift(Eh, *p2_opt))
+    # closure test: the exported curve against the eight measured points
+    r_at_lines = np.interp(E, Eh, r_smooth)
+    closure_pct = 100.0 * np.abs(r_at_lines / rf - 1.0)
+
     lines = [
         f"tilt angle: {TILT_DEG:.1f} deg"
         " (from foreshortening; upper bound, see 07b)",
@@ -252,6 +323,17 @@ if __name__ == "__main__":
         f"  fitted white noise = {100 * gp_jit:.2f}%",
         f"  max |model - GP mean| / GP sigma over"
         f" {E.min():.1f}-{E.max():.1f} keV: {z_gp:.2f}",
+        "",
+        "handoff 2 -- smooth R(E) = R_det(E) * exp(GP residual):",
+        f"  GP on log-residuals: amp = {100 * res_amp:.2f}%"
+        f"  length scale = {res_ell:.1f} keV"
+        f"  (floor {HANDOFF_ELL_MIN_KEV:.1f} keV)"
+        f"  white noise pinned at {100 * res_jit:.1f}%",
+        f"  closure at the 8 measured lines: max"
+        f" {closure_pct.max():.2f}%, mean {closure_pct.mean():.2f}%",
+        f"  exported on {HANDOFF_LO_KEV:.0f}-{HANDOFF_HI_KEV:.0f} keV"
+        f" ({len(Eh)} points, {HANDOFF_STEP_KEV:.2f} keV step);"
+        " R_tilt column for the ruotato pixels",
     ]
     print("\n".join(lines))
 
@@ -260,6 +342,66 @@ if __name__ == "__main__":
     with open(txt_path, "w") as f:
         f.write("\n".join(lines) + "\n")
 
+    # ---- handoff 2 files -----------------------------------------------
+    curve_path = os.path.join(OUTPUT_DIR, "handoff2_ratio_curve.csv")
+    with open(curve_path, "w", newline="") as f:
+        w = csv.writer(f)
+        w.writerow(["kev", "R", "R_sigma", "R_model", "R_tilt"])
+        for e, r, s, rm, rt in zip(Eh, r_smooth, r_sigma, r_model, r_tilt):
+            w.writerow([f"{e:.4f}", f"{r:.6f}", f"{s:.6f}",
+                        f"{rm:.6f}", f"{rt:.6f}"])
+
+    md = [
+        "# Handoff 2 (A -> B): response ratio R(E) = det10264 / det19511",
+        "",
+        "Table 1 rows (registered overlap region, `results/registration/"
+        "overlap_ratios.csv`) and the smooth curve derived from them.",
+        "",
+        "| line | E (keV) | R frontal | sigma | R tilted | tilt shift |",
+        "|------|---------|-----------|-------|----------|------------|",
+    ]
+    for i, name in enumerate(els):
+        md.append(f"| {name} | {E[i]:.2f} | {rf[i]:.4f} | {rf_err[i]:.4f}"
+                  f" | {rr[i]:.4f} | {100 * delta[i]:+.2f}% |")
+    md += [
+        "",
+        "## Curve file",
+        "",
+        "`handoff2_ratio_curve.csv`, columns:",
+        "",
+        "- `kev`     - energy grid,"
+        f" {HANDOFF_LO_KEV:.0f}-{HANDOFF_HI_KEV:.0f} keV in"
+        f" {HANDOFF_STEP_KEV:.2f} keV steps;",
+        "- `R`       - smooth frontal ratio, stage-1 detector model"
+        " corrected by a GP on the log-residuals of the eight lines"
+        f" (closure at the measured points: max {closure_pct.max():.2f}%);",
+        "- `R_sigma` - 1-sigma band of that correction;",
+        "- `R_model` - the bare parametric stage-1 curve (physics only);",
+        "- `R_tilt`  - R times the fitted tilt shift, i.e. the ratio that"
+        " applies to the tilted (ruotato) scan.",
+        "",
+        "## How to use it (N2N target scaling, PLAN 8.4)",
+        "",
+        "```python",
+        "from src.data.cross_detector import ratio_curve_from_csv",
+        "R = ratio_curve_from_csv(path, n_channels, slope, intercept)"
+        "   # kev, R",
+        "```",
+        "",
+        "Use `R` for prova1/prova2 pixels and `R_tilt` (`r_col=\"R_tilt\"`)"
+        " for the ruotato pixels; keep the loss masked to 3.5-15.5 keV,"
+        " outside which the curve is model extrapolation rather than"
+        " measurement.",
+        "",
+        "Supersedes the provisional curve interpolated from"
+        " `efficiency_ratios.csv`: those are full-frame ratios, which"
+        " PLAN 8.7 showed to carry a field-of-view artifact (up to 4% on"
+        " R itself, sign flip on the tilt shift).",
+    ]
+    md_path = os.path.join(OUTPUT_DIR, "handoff2_ratio_curve.md")
+    with open(md_path, "w") as f:
+        f.write("\n".join(md) + "\n")
+
     # ---- figure --------------------------------------------------------
     fig, (axa, axb) = plt.subplots(1, 2, figsize=(11, 4.4))
 
@@ -267,6 +409,9 @@ if __name__ == "__main__":
                  label="frontal (data)")
     axa.plot(Ef, det_ratio(Ef, *p1_opt), "-",
              label="detector model fit")
+    in_grid = (Eh >= Ef.min()) & (Eh <= Ef.max())
+    axa.plot(Eh[in_grid], r_smooth[in_grid], ":", color="0.35", lw=1.4,
+             label="handoff-2 curve (model x GP residual)")
     for x, y, name in zip(E, rf, els):
         axa.annotate(name, (x, y), textcoords="offset points",
                      xytext=(4, 4), fontsize=8)
@@ -301,3 +446,5 @@ if __name__ == "__main__":
 
     print(f"\nSaved: {txt_path}")
     print(f"Saved: {fig_path}")
+    print(f"Saved: {curve_path}")
+    print(f"Saved: {md_path}")

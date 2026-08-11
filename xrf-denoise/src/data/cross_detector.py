@@ -8,11 +8,15 @@ therefore be rescaled into the input detector's response scale,
 channel by channel, before training (PLAN amendment 8.4); otherwise
 the network learns detector B's response instead of the clean signal.
 
-Until Person A delivers the smooth GP ratio curve (handoff 2), a
-PROVISIONAL curve interpolated from the 8 reliable line ratios of
-``results/detector_diff/efficiency_ratios.csv`` is available via
-:func:`ratio_curve_from_table`; trial trainings may also run entirely
-unscaled (``ratio_curve=None``), as PLAN §4.3 allows.
+Handoff 2 delivers that curve as
+``results/detector_diff/handoff2_ratio_curve.csv`` (script 07): column
+``R`` for the frontal scans, ``R_tilt`` for the tilted one, read with
+:func:`ratio_curve_from_csv`. The older
+:func:`ratio_curve_from_table` builds a PROVISIONAL curve from the
+full-frame per-element ratios of ``efficiency_ratios.csv`` and is kept
+only for reproducing pre-handoff runs — those ratios carry the
+field-of-view artifact of PLAN §8.7. Trial trainings may also run
+entirely unscaled (``ratio_curve=None``), as PLAN §4.3 allows.
 
 Scaling caveat for the loss: a target multiplied by R(E) is no longer
 integer Poisson counts — use MSE (or a variance-weighted loss) on
@@ -49,6 +53,24 @@ def make_channel_mask(
     """Boolean per-channel mask for the loss window (True = use channel)."""
     energy = np.arange(n_channels) * slope + intercept
     return (energy >= lo_kev) & (energy <= hi_kev)
+
+
+def clamp_curve_to_mask(curve: np.ndarray, mask: np.ndarray) -> np.ndarray:
+    """Hold R(E) constant outside the loss window.
+
+    Below ~3 keV detector B sees almost nothing, so the physical ratio
+    runs to 1e5 and scaled targets would carry astronomical values in
+    channels the loss discards anyway. Freezing the curve at the window
+    edges keeps every tensor bounded without touching any channel that
+    enters the loss.
+    """
+    idx = np.flatnonzero(mask)
+    if idx.size == 0:
+        raise ValueError("empty loss mask")
+    out = np.array(curve, dtype=np.float32, copy=True)
+    out[:idx[0]] = out[idx[0]]
+    out[idx[-1] + 1:] = out[idx[-1]]
+    return out
 
 
 def _interp_ratio(kev_pts, r_pts, n_channels, slope, intercept) -> np.ndarray:
@@ -190,14 +212,24 @@ class XRFCrossDetectorDataset(Dataset):
     ----------
     parts : list of (scan, spec_a, spec_b, indices)
         As produced by :func:`build_cross_detector_splits`.
-    ratio_curve : np.ndarray (C,) or None
-        R(E) = E[A]/E[B] per channel.
+    ratio_curve : np.ndarray (C,), dict scan -> np.ndarray (C,), or None
+        R(E) = E[A]/E[B] per channel. A dict selects the curve per scan,
+        which is how the tilted scan gets its own ratio (handoff 2
+        column ``R_tilt``: the tilt raises R by up to 9.5%).
     global_scale : float
         Divide both input and target by this to keep values O(1).
     both_directions : bool
         If False, only direction 0 (A -> B) is served.
     loss_mask : np.ndarray (C,) bool, optional
         Exposed as ``self.loss_mask`` (torch.bool) for masked losses.
+    return_weight : bool
+        If True each item is ``(x, y, w)`` with per-channel weights that
+        undo the variance the rescaling introduces. Scaling detector B
+        up by R multiplies its variance by R^2 while the mean only grows
+        by R, so a plain MSE is dominated by the low-energy channels
+        where R ~ 6 -- exactly where the Ca line sits. The weights are
+        1/R for direction 0 and R for direction 1, i.e. proportional to
+        the inverse target variance up to the per-pixel count level.
     """
 
     def __init__(
@@ -207,12 +239,25 @@ class XRFCrossDetectorDataset(Dataset):
         global_scale: float = 1.0,
         both_directions: bool = True,
         loss_mask: np.ndarray | None = None,
+        return_weight: bool = False,
     ):
+        self.return_weight = return_weight
         self.parts = parts
-        self.ratio_curve = (
-            None if ratio_curve is None
-            else np.asarray(ratio_curve, dtype=np.float32)
-        )
+        if ratio_curve is None:
+            self.ratio_curve = None
+            self._curves = [None] * len(parts)
+        elif isinstance(ratio_curve, dict):
+            self.ratio_curve = {
+                k: np.asarray(v, dtype=np.float32)
+                for k, v in ratio_curve.items()
+            }
+            missing = {scan for scan, _, _, _ in parts} - set(self.ratio_curve)
+            if missing:
+                raise KeyError(f"no ratio curve for scan(s): {sorted(missing)}")
+            self._curves = [self.ratio_curve[scan] for scan, _, _, _ in parts]
+        else:
+            self.ratio_curve = np.asarray(ratio_curve, dtype=np.float32)
+            self._curves = [self.ratio_curve] * len(parts)
         self.global_scale = float(global_scale)
         self.n_directions = 2 if both_directions else 1
         self.loss_mask = (
@@ -234,15 +279,22 @@ class XRFCrossDetectorDataset(Dataset):
         _, fa, fb, _ = self.parts[pi]
         a = fa[j].astype(np.float32)
         b = fb[j].astype(np.float32)
+        curve = self._curves[pi]
 
         if direction == 0:
-            x, y = a, (b * self.ratio_curve if self.ratio_curve is not None else b)
+            x, y = a, (b * curve if curve is not None else b)
         else:
-            x, y = b, (a / self.ratio_curve if self.ratio_curve is not None else a)
+            x, y = b, (a / curve if curve is not None else a)
 
         x = torch.from_numpy(x / self.global_scale).unsqueeze(0)
         y = torch.from_numpy(y / self.global_scale).unsqueeze(0)
-        return x, y
+        if not self.return_weight:
+            return x, y
+        if curve is None:
+            w = np.ones_like(a)
+        else:
+            w = (1.0 / curve) if direction == 0 else curve
+        return x, y, torch.from_numpy(w.astype(np.float32)).unsqueeze(0)
 
     def save_record(self, record: dict, path: str | Path) -> None:
         Path(path).parent.mkdir(parents=True, exist_ok=True)

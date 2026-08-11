@@ -1,6 +1,6 @@
 """
 05b_logratio_maps.py
-Per-element log-ratio maps log(D10264 / D19511) for all three scans —
+Per-element log-ratio maps log(D10264 / D19511) for all three scans -
 the geometry-tracking counterpart of the abundance-tracking difference
 maps in 05_detector_diff.py (diff maps follow element abundance; ratio
 maps follow geometry, because composition cancels pixel-wise to first
@@ -54,7 +54,7 @@ MIN_COUNTS = 10.0   # mask pixels where either detector is below this
 def load_map(scan: str, det: str, el: str) -> np.ndarray:
     p = os.path.join(CACHE_DIR, f"{scan}_{det}_{el}.npy")
     if not os.path.exists(p):
-        sys.exit(f"ERROR: cache missing: {p} — run scripts/06_efficiency_ratios.py first.")
+        sys.exit(f"ERROR: cache missing: {p} - run scripts/06_efficiency_ratios.py first.")
     return np.load(p)
 
 
@@ -105,7 +105,7 @@ if __name__ == "__main__":
         out_dir = os.path.join(OUTPUT_DIR, scan)
         os.makedirs(out_dir, exist_ok=True)
         sigma = max(2.0, width / 20)
-        print(f"\n=== {scan}  ({width}×{height} px, smooth σ={sigma:.1f} px) ===")
+        print(f"\n=== {scan}  ({width}x{height} px, smooth sigma={sigma:.1f} px) ===")
 
         logratios, smooths, residuals, centered = {}, {}, {}, []
         for el in ELEMENTS:
