@@ -1,0 +1,40 @@
+Closure test of the two-stage characterization (scripts 07/16)
+tilt angle: 7.7 deg; stage-2 refit: s = +0.529 +- 0.098, Ec = 3.55 +- 0.48 keV, c = +0.0122 +- 0.0019
+
+BEFORE -- tilted ratios vs frontal detector model alone:
+  residual = R_ruotato / R_frontal_overlap - 1  (raw tilt shift)
+  chi2/dof = 1080.3/8 = 135.0   max |residual| = 9.51%
+
+AFTER -- stage-2 geometric factor (1+c) * geom(7.7 deg)/geom(0) divided out:
+  chi2/dof = 19.1/5 = 3.8   max |residual| = 1.75%
+
+per-line residuals (percent):
+  line    E(keV)   before +- err     after +- err
+  Ca       3.69    +9.51 +- 0.41     -0.07 +- 0.38
+  Ti       4.51    +7.89 +- 0.60     +0.56 +- 0.56
+  Fe       6.40    +3.48 +- 0.38     -0.57 +- 0.37
+  Cu       8.04    +2.51 +- 0.55     -0.29 +- 0.53
+  PbLl     9.19    +4.11 +- 0.74     +1.75 +- 0.72
+  PbLa    10.54    +2.16 +- 0.19     +0.19 +- 0.19
+  PbLb    12.61    +1.78 +- 0.17     +0.11 +- 0.17
+  PbLg    14.77    +0.58 +- 0.33     -0.91 +- 0.32
+
+cross-check -- handoff-2 smooth curve R(E) interpolated at the 8 lines vs R_frontal_overlap:
+  max |closure| = 0.31%,  mean |closure| = 0.14%  (expected < 0.5%, cf. geometry_fit.txt)
+  Ca       3.69  +0.15%
+  Ti       4.51  -0.19%
+  Fe       6.40  +0.11%
+  Cu       8.04  -0.25%
+  PbLl     9.19  +0.31%
+  PbLa    10.54  -0.08%
+  PbLb    12.61  +0.02%
+  PbLg    14.77  -0.01%
+
+CAVEAT: the 'after' residuals are correlated with the fit -- the three stage-2
+parameters (s, Ec, c) were fitted on these same eight points, so chi2_after
+reproduces the stage-2 fit chi2 by construction. This is a consistency /
+closure check of the parametrization, not an independent validation;
+independent validation would require a scan at a second tilt angle.
+The residual chi2/dof > 1 after correction reflects the bootstrap errors
+capturing only counting statistics, not the ~0.4-0.6% scan-to-scan
+systematics (cf. 07).

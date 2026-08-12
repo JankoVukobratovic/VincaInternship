@@ -47,3 +47,4 @@ xrf-denoise/data/processed/*.npz
 # ...and the cross-detector N2N checkpoint, so the fusion table
 # reproduces without retraining:
 !xrf-denoise/experiments/cross_detector/checkpoints/best_model.pt
+!xrf-denoise/experiments/cross_detector/checkpoints/best_model_intloss.pt

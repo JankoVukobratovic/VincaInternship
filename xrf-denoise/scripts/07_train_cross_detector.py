@@ -21,6 +21,19 @@ validation carved out of them, prova2 never seen. The exported fused
 cubes and the held-out pixel list let 09_fusion.py add the learned
 variant to the same table as summing and inverse-variance weighting.
 
+--integral-loss-weight W (default 0 = previous behavior) adds the
+integrated-line-intensity anchor, PLAN 8.10's next candidate against
+the +33%/-30% Ca/Ti level bias: for each of the eight analysis lines,
+the benchmark's own net-integral functional of the prediction is
+pulled toward the inverse-variance combination of the two raw
+detectors, per pixel, normalized by the anchor's estimated variance
+(a chi^2 per line). Per-channel MSE is blind to a level error that
+hides in the continuum under a line window — this term measures the
+prediction with exactly the integrator the maps are made with. Full
+design reasoning: src/data/cross_detector.py (``integral_anchor``).
+Such runs write the held-out list under a suffixed name so the main
+run's reference files stay untouched.
+
 Inputs : data/processed/<scan>_<det>_raw.npy      (from script 06)
          ../results/detector_diff/handoff2_ratio_curve.csv
 Outputs: experiments/cross_detector/checkpoints/best_model.pt
@@ -53,6 +66,7 @@ from src.data.cross_detector import (
     build_cross_detector_splits,
     clamp_curve_to_mask,
     make_channel_mask,
+    net_line_operator,
     ratio_curve_from_csv,
 )
 from src.models.unet1d import UNet1D
@@ -62,6 +76,14 @@ cfg = Config()
 SCANS = {"prova1": (60, 120), "prova2": (60, 120), "ruotato": (45, 80)}
 # above this response ratio the B branch is dropped from the fusion
 R_DROP_B = 2.5
+# The eight reliable analysis lines of the benchmark (09_fusion.py).
+LINE_KEYS = ["Ca", "Ti", "Fe", "Cu", "PbLl", "PbLa", "PbLb", "PbLg"]
+# Calibration of the benchmark integrator (xrf_core.build_calibration
+# in the main repo, i.e. E(c) = 0.0292c - 0.069). The integral anchor
+# must address exactly the channels 09's map integrator sums, and the
+# Pb windows differ by one channel from what cfg.cal_* would give.
+INT_CAL_SLOPE = 0.02916632052744066
+INT_CAL_INTERCEPT = -0.06901678838180736
 HANDOFF2_CURVE = (VINCA_ROOT / "results" / "detector_diff"
                   / "handoff2_ratio_curve.csv")
 WARM_START = PROJECT_ROOT / "experiments" / "A_scratch" / "checkpoints" / "best_model.pt"
@@ -104,7 +126,7 @@ def line_window_mask(n_ch, slope, intercept):
     """
     with open(VINCA_ROOT / "src" / "elements.json") as fh:
         els = json.load(fh)
-    keys = ["Ca", "Ti", "Fe", "Cu", "PbLl", "PbLa", "PbLb", "PbLg"]
+    keys = LINE_KEYS
     energy = np.arange(n_ch) * slope + intercept
     m = np.zeros(n_ch, dtype=bool)
     for k in keys:
@@ -125,24 +147,49 @@ def masked_mse(pred, target, mask, weight=None):
     return ((pred - target) ** 2 * w).sum() / w.sum()
 
 
-def run_epoch(model, loader, mask, device, optimizer=None):
+def run_epoch(model, loader, mask, device, optimizer=None,
+              int_op=None, int_weight=0.0):
+    """One pass over ``loader``; returns the mean loss.
+
+    With ``int_op`` (the (K, C) net-line-integral operator as a torch
+    tensor) and ``int_weight`` > 0, batches carry the per-line anchor
+    and its variance (dataset ``integral_anchor``), the loss becomes
+    MSE + int_weight * mean chi^2 of the line integrals, and the return
+    value is a tuple (total, mse, integral) instead of a float.
+    """
     train = optimizer is not None
+    use_int = int_op is not None and int_weight > 0
     model.train(train)
-    total, n = 0.0, 0
+    total, total_mse, total_int, n = 0.0, 0.0, 0.0, 0
     for batch in loader:
         x, y = batch[0], batch[1]
         w = batch[2].to(device, non_blocking=True) if len(batch) > 2 else None
         x = x.to(device, non_blocking=True)
         y = y.to(device, non_blocking=True)
         with torch.set_grad_enabled(train):
-            loss = masked_mse(model(x), y, mask, w)
+            pred = model(x)
+            loss_mse = masked_mse(pred, y, mask, w)
+            if use_int:
+                anchor = batch[3].to(device, non_blocking=True)
+                var = batch[4].to(device, non_blocking=True)
+                ipred = torch.matmul(pred.squeeze(1), int_op.t())
+                loss_int = ((ipred - anchor) ** 2 / var).mean()
+                loss = loss_mse + int_weight * loss_int
+            else:
+                loss = loss_mse
         if train:
             optimizer.zero_grad(set_to_none=True)
             loss.backward()
             optimizer.step()
         total += loss.item() * x.shape[0]
+        total_mse += loss_mse.item() * x.shape[0]
+        if use_int:
+            total_int += loss_int.item() * x.shape[0]
         n += x.shape[0]
-    return total / max(n, 1)
+    n = max(n, 1)
+    if use_int:
+        return total / n, total_mse / n, total_int / n
+    return total / n
 
 
 @torch.no_grad()
@@ -204,6 +251,13 @@ if __name__ == "__main__":
     ap.add_argument("--fuse-weights", default="invvar",
                     choices=("invvar", "invvar_capped", "equal"),
                     help="how the two directions are combined at export")
+    ap.add_argument("--integral-loss-weight", type=float, default=0.0,
+                    help="weight of the integrated-line-intensity anchor"
+                         " (0 = off, previous behavior): per pixel and"
+                         " analysis line, chi^2 pull of the benchmark's"
+                         " net line integral of the prediction toward the"
+                         " inverse-variance combination of the two raw"
+                         " detectors (see module docstring)")
     ap.add_argument("--loss-lo", type=float, default=None,
                     help="lower edge of the loss window in keV "
                          "(default: the module constant)")
@@ -257,12 +311,28 @@ if __name__ == "__main__":
     sample = splits["train"][0][1][::37].ravel()
     global_scale = float(np.percentile(sample, 99.9)) or 1.0
 
+    int_anchor = None
+    if args.integral_loss_weight > 0:
+        with open(VINCA_ROOT / "src" / "elements.json") as fh:
+            els = json.load(fh)
+        int_op_np = net_line_operator(n_ch, INT_CAL_SLOPE,
+                                      INT_CAL_INTERCEPT, els, LINE_KEYS)
+        energy_b = np.arange(n_ch) * INT_CAL_SLOPE + INT_CAL_INTERCEPT
+        centers = np.array([int(np.argmin(np.abs(energy_b - els[k]["kev"])))
+                            for k in LINE_KEYS])
+        # scalar R at each line center, from the scan's own curve
+        int_anchor = {"op": int_op_np,
+                      "r_line": {s: c[centers] for s, c in curves.items()}}
+        print(f"integral anchor: {len(LINE_KEYS)} lines,"
+              f" weight {args.integral_loss_weight:g}")
+
     datasets = {
         name: XRFCrossDetectorDataset(
             parts, ratio_curve=curves, global_scale=global_scale,
             loss_mask=mask_np,
             return_weight={"invvar": "ratio", "poisson": "poisson",
-                           "none": False}[args.loss_weight])
+                           "none": False}[args.loss_weight],
+            integral_anchor=int_anchor)
         for name, parts in splits.items()
     }
     if args.smoke:
@@ -301,6 +371,8 @@ if __name__ == "__main__":
         print(f"  warm start from {warm}")
     model = model.to(device)
     mask = torch.from_numpy(mask_np).to(device).float().view(1, 1, -1)
+    int_op = (torch.from_numpy(int_anchor["op"]).to(device)
+              if int_anchor is not None else None)
 
     if args.eval_only:
         src = Path(args.init_from) if args.init_from else (
@@ -330,11 +402,22 @@ if __name__ == "__main__":
         "smoke_model.pt" if args.smoke else f"best_model{suffix}.pt")
     load_path = Path(args.init_from) if args.init_from else ckpt_path
     for epoch in range(0 if not args.export_only else args.epochs, args.epochs):
-        tr = run_epoch(model, loaders["train"], mask, device, optimizer)
-        va = run_epoch(model, loaders["val"], mask, device)
+        tr = run_epoch(model, loaders["train"], mask, device, optimizer,
+                       int_op, args.integral_loss_weight)
+        va = run_epoch(model, loaders["val"], mask, device, None,
+                       int_op, args.integral_loss_weight)
+        extra = ""
+        entry = {"epoch": epoch}
+        if int_op is not None:
+            tr, tr_mse, tr_int = tr
+            va, va_mse, va_int = va
+            entry.update({"train_mse": tr_mse, "train_int": tr_int,
+                          "val_mse": va_mse, "val_int": va_int})
+            extra = f"  [val mse {va_mse:.6f} int {va_int:.3f}]"
         sched.step(va)
-        history.append({"epoch": epoch, "train": tr, "val": va,
-                        "lr": optimizer.param_groups[0]["lr"]})
+        entry.update({"train": tr, "val": va,
+                      "lr": optimizer.param_groups[0]["lr"]})
+        history.append(entry)
         flag = ""
         if va < best_val:
             best_val, best_epoch, flag = va, epoch, "  *"
@@ -344,7 +427,7 @@ if __name__ == "__main__":
                         "warm_start": warm,
                         "seed": cfg.seed}, ckpt_path)
         print(f"  epoch {epoch:3d}  train {tr:.6f}  val {va:.6f}"
-              f"  ({time.time() - t0:5.0f}s){flag}", flush=True)
+              f"  ({time.time() - t0:5.0f}s){extra}{flag}", flush=True)
         if epoch - best_epoch >= args.patience:
             print(f"  early stop (no improvement in {args.patience} epochs)")
             break
@@ -357,14 +440,17 @@ if __name__ == "__main__":
     else:
         print(f"best val {best_val:.6f} at epoch {best_epoch}"
               f"  -> {ckpt_path.relative_to(PROJECT_ROOT)}")
+        payload = {"history": history, "best_epoch": best_epoch,
+                   "best_val": best_val, "global_scale": global_scale,
+                   "warm_start": warm, "epochs_run": len(history),
+                   "batch_size": args.batch_size, "lr": args.lr,
+                   "fuse_weights": args.fuse_weights,
+                   "loss_weight": args.loss_weight,
+                   "device": str(device)}
+        if args.integral_loss_weight > 0:
+            payload["integral_loss_weight"] = args.integral_loss_weight
         with open(EXP_DIR / "results" / f"history{suffix}.json", "w") as fh:
-            json.dump({"history": history, "best_epoch": best_epoch,
-                       "best_val": best_val, "global_scale": global_scale,
-                       "warm_start": warm, "epochs_run": len(history),
-                       "batch_size": args.batch_size, "lr": args.lr,
-                       "fuse_weights": args.fuse_weights,
-                       "loss_weight": args.loss_weight,
-                       "device": str(device)}, fh, indent=1)
+            json.dump(payload, fh, indent=1)
 
     if args.smoke:
         print("\nSmoke run: no cubes exported.")
@@ -386,8 +472,13 @@ if __name__ == "__main__":
 
     # pixels of the frontal grid the network never saw: the prova1
     # validation blocks. 09 evaluates the learned variant there.
+    # Integral-anchor runs write under the tag suffix so the main run's
+    # reference list is never overwritten (the content is identical
+    # anyway: the split is deterministic in the seed).
+    heldout_name = ("fused_heldout_px.json" if args.integral_loss_weight == 0
+                    else f"fused_heldout_px{suffix}.json")
     heldout = record["scans"]["prova1"]["val_indices"]
-    with open(processed / "fused_heldout_px.json", "w") as fh:
+    with open(processed / heldout_name, "w") as fh:
         json.dump({"scan": "prova1", "rows": 60, "cols": 120,
                    "val_indices": heldout,
                    "note": "prova1 spatial validation blocks; prova2 is "

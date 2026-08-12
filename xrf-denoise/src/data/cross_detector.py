@@ -125,6 +125,58 @@ def ratio_curve_from_csv(
     return _interp_ratio(kev, r, n_channels, slope, intercept)
 
 
+# ── line-integral operator (integral anchor, script 07) ────────────────
+
+
+def net_line_operator(
+    n_channels: int,
+    slope: float,
+    intercept: float,
+    elements: dict,
+    keys: list[str],
+    bg_hw: float = 0.25,
+) -> np.ndarray:
+    """Benchmark net line integrals as one (K, C) linear operator.
+
+    Row k applied to a spectrum reproduces the main repo's
+    ``xrf_core._integrate_fixed_hw`` for line ``keys[k]`` exactly —
+    peak window of ±hw around the line center, minus the linear
+    background interpolated between the means of the two ``bg_hw``-wide
+    sidebands — except for the final ``max(0, ·)`` clamp, which is
+    dropped so the functional stays linear and differentiable (at real
+    line pixels the net integral is positive anyway). Because
+    ``sum(linspace(l, r, n)) = n*(l+r)/2``, the background subtraction
+    is itself linear: -(n_peak/2)/n_side on every sideband channel.
+
+    ``slope``/``intercept`` must be the calibration the benchmark
+    integrator uses, so the anchored quantity is channel-identical to
+    the maps that scripts/09_fusion.py evaluates.
+    """
+    energy = np.arange(n_channels) * slope + intercept
+    op = np.zeros((len(keys), n_channels), dtype=np.float32)
+    for k_i, key in enumerate(keys):
+        cfg_el = elements[key]
+        hw = cfg_el.get("hw", 0.30)
+        idx = int(np.argmin(np.abs(energy - cfg_el["kev"])))
+        half = max(1, int(round(hw / slope)))
+        bg = max(1, int(round(bg_hw / slope)))
+        lo = max(0, idx - half)
+        hi = min(n_channels - 1, idx + half)
+        n_peak = hi - lo + 1
+        op[k_i, lo:hi + 1] = 1.0
+        bl_l, bl_r = max(0, lo - bg), lo                    # [bl_l, bl_r)
+        br_l, br_r = hi + 1, min(n_channels - 1, hi + 1 + bg)
+        if bl_r > bl_l:
+            op[k_i, bl_l:bl_r] -= (n_peak / 2.0) / (bl_r - bl_l)
+        else:                                # xrf_core fallback: counts[lo]
+            op[k_i, lo] -= n_peak / 2.0
+        if br_r > br_l:
+            op[k_i, br_l:br_r] -= (n_peak / 2.0) / (br_r - br_l)
+        else:                                # xrf_core fallback: counts[hi]
+            op[k_i, hi] -= n_peak / 2.0
+    return op
+
+
 # ── split ───────────────────────────────────────────────────────────────
 
 
@@ -243,6 +295,45 @@ class XRFCrossDetectorDataset(Dataset):
         this the Pb lines, two orders of magnitude brighter than Ca,
         take over the gradient and the Ca line is left under-fitted --
         visible as a collapsed spatial contrast in the fused Ca map.
+    integral_anchor : dict or None
+        Enables the integrated-line-intensity anchor behind script 07's
+        ``--integral-loss-weight`` (default None = off, previous
+        behavior unchanged). Keys: ``"op"``, a (K, C) array from
+        :func:`net_line_operator` (the benchmark's net line integrals
+        as linear functionals), and ``"r_line"``, a (K,) array or dict
+        scan -> (K,) with the scalar response ratio at each line
+        center. Every example then carries two extra tensors
+        ``(anchor, var)``: the per-line inverse-variance combination of
+        BOTH raw detectors in the input's response scale,
+
+            direction 0 (A scale): I_k = wa*N_k(a) + (1-wa)*r_k*N_k(b)
+            direction 1 (B scale): the same divided by r_k,
+
+        with wa = r/(r+1), and its variance estimated from the observed
+        counts (Var N_k(x) ~ sum(op_k^2 * (x+1))).
+
+        Design reasoning. The anchor is NOT the noisy N2N target: in
+        direction 0 the target is R*b, whose net integral at Ca carries
+        R^2 ~ 34x detector B's window variance — a very noisy level
+        reference that also uses only one detector. The per-channel N2N
+        argument (target must be independent of the input) does not
+        carry over to the level term either, because the level error
+        being corrected is common-mode across pixels while any anchor
+        noise is zero-mean: the systematic gradient survives averaging,
+        the noise does not. The invvar combination is instead the
+        minimum-variance unbiased per-pixel estimate of the line level
+        (E[a] = r*E[b], so E[I_k] is the clean level in the input
+        scale) and is the exact reference of the benchmark's
+        ``bias_learned_pct`` column (09_fusion ``level_bias``), so the
+        loss pins precisely the statistic that column measures. Caveat:
+        the anchor contains the input's own noise, so a LARGE weight
+        teaches the network to copy the raw per-pixel map noise back
+        into the fused map (the cross-scan SNR gain would collapse to
+        the classical weighted fusion); the weight must stay moderate.
+
+        When set, ``__getitem__`` always returns 5-tuples
+        ``(x, y, w, anchor, var)`` — ``w`` falls back to ones when
+        ``return_weight`` is False.
     """
 
     def __init__(
@@ -253,9 +344,22 @@ class XRFCrossDetectorDataset(Dataset):
         both_directions: bool = True,
         loss_mask: np.ndarray | None = None,
         return_weight: bool = False,
+        integral_anchor: dict | None = None,
     ):
         self.return_weight = return_weight
         self.parts = parts
+        self.integral_anchor = integral_anchor
+        if integral_anchor is not None:
+            self._int_op = np.asarray(integral_anchor["op"],
+                                      dtype=np.float32)
+            self._int_op2 = self._int_op ** 2
+            rl = integral_anchor["r_line"]
+            if isinstance(rl, dict):
+                self._int_r = [np.asarray(rl[scan], dtype=np.float32)
+                               for scan, _, _, _ in parts]
+            else:
+                rl = np.asarray(rl, dtype=np.float32)
+                self._int_r = [rl] * len(parts)
         if ratio_curve is None:
             self.ratio_curve = None
             self._curves = [None] * len(parts)
@@ -301,16 +405,33 @@ class XRFCrossDetectorDataset(Dataset):
 
         x = torch.from_numpy(x / self.global_scale).unsqueeze(0)
         y = torch.from_numpy(y / self.global_scale).unsqueeze(0)
-        if not self.return_weight:
+        if not self.return_weight and self.integral_anchor is None:
             return x, y
-        if curve is None:
+        if not self.return_weight or curve is None:
             w = np.ones_like(a)
         elif self.return_weight == "poisson":
             w = (1.0 / (curve * (a + 1.0)) if direction == 0
                  else curve / (b + 1.0))
         else:
             w = (1.0 / curve) if direction == 0 else curve
-        return x, y, torch.from_numpy(w.astype(np.float32)).unsqueeze(0)
+        w = torch.from_numpy(w.astype(np.float32)).unsqueeze(0)
+        if self.integral_anchor is None:
+            return x, y, w
+
+        # per-line invvar level anchor + its variance, input scale
+        rl = self._int_r[pi]
+        na, nb = self._int_op @ a, self._int_op @ b
+        va = self._int_op2 @ (a + 1.0)
+        vb = self._int_op2 @ (b + 1.0)
+        wa = rl / (rl + 1.0)
+        anchor = wa * na + (1.0 - wa) * rl * nb
+        var = wa ** 2 * va + (1.0 - wa) ** 2 * rl ** 2 * vb
+        if direction == 1:                       # bring to the B scale
+            anchor, var = anchor / rl, var / rl ** 2
+        gs = self.global_scale
+        return (x, y, w,
+                torch.from_numpy((anchor / gs).astype(np.float32)),
+                torch.from_numpy((var / (gs * gs)).astype(np.float32)))
 
     def save_record(self, record: dict, path: str | Path) -> None:
         Path(path).parent.mkdir(parents=True, exist_ok=True)

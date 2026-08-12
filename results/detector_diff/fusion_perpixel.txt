@@ -1,0 +1,44 @@
+Per-pixel gain-matched fusion vs global-scalar inverse-variance weighting
+(gains/weights from checkerboard A, all metrics on checkerboard B;
+ cross-scan SNR and Pearson r, prova1 vs prova2, 3600 px)
+
+variants: sum = plain sum; wgt_global = 09's scalar weighting;
+ wgt_pixgain = per-pixel gain alpha*exp(flatfield), scalar weights;
+ wgt_pixpois = same gains + Poisson per-pixel weight w2(p) ~ exp(-flat)
+
+line     SNR sum  SNR glob    gain  SNR pixg    gain  SNR pixp    gain   r sum  w10264
+Ca         19.70     19.98   +1.4%     19.97   +1.4%     19.96   +1.3%  0.9907    0.88
+Ti         10.48     10.73   +2.4%     10.72   +2.3%     10.72   +2.3%  0.9595    0.79
+Fe          9.31      9.33   +0.2%      9.32   +0.0%      9.33   +0.2%  0.9926    0.58
+Cu          8.12      8.21   +1.1%      8.21   +1.0%      8.20   +1.0%  0.9827    0.59
+PbLl        5.51      5.52   +0.2%      5.50   -0.1%      5.51   -0.0%  0.9021    0.49
+PbLa       34.95     34.96   +0.0%     35.21   +0.7%     35.23   +0.8%  0.9917    0.50
+PbLb       32.83     32.84   +0.0%     33.03   +0.6%     33.04   +0.6%  0.9905    0.47
+PbLg       12.65     12.67   +0.2%     12.53   -0.9%     12.55   -0.8%  0.9329    0.42
+
+variant         mean gain  median gain   (SNR vs plain sum)
+wgt_global         +0.70%       +0.21%
+wgt_pixgain        +0.63%       +0.68%
+wgt_pixpois        +0.68%       +0.72%
+
+Per-pixel beats global on 2/8 lines; best per-pixel mean gain +0.68% vs global +0.70% (delta -0.02 pp).
+Verdict: NULL RESULT - per-pixel weighting does not beat the global scalar version on cross-scan SNR.
+
+Note: the cross-scan SNR metric is blind to a static gain field
+(g(p) multiplies prova1 and prova2 identically and cancels in the
+difference), so the accuracy benefit of flat-field correction --
+removing a ~9% RMS spatial bias from the fused map -- is real but
+invisible here; only the second-order re-weighting effect can move
+this SNR.
+
+Sanity check: variant 'wgt_global' vs 09's stored fusion_weighted.csv (all_px)
+line    SNR sum (09)      here  SNR wgt (09)      here
+Ca           19.6978   19.6978       19.9775   19.9775
+Ti           10.4819   10.4819       10.7284   10.7284
+Fe            9.3139    9.3139        9.3326    9.3326
+Cu            8.1221    8.1221        8.2142    8.2142
+PbLl          5.5088    5.5088        5.5214    5.5214
+PbLa         34.9521   34.9521       34.9560   34.9560
+PbLb         32.8278   32.8278       32.8403   32.8403
+PbLg         12.6490   12.6490       12.6741   12.6741
+  max |deviation| = 0.00e+00  -> OK (matches within rounding)

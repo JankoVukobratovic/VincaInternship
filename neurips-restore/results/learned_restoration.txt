@@ -1,0 +1,117 @@
+Learned restoration (MVP-3) - residual U-Net on top of the
+deterministic physics inversion, REAL ruotato -> frontal
+
+PROTOCOL (honest-evaluation rules of the README):
+  - Training data: physics-simulated pairs from the prova1 maps
+    ONLY: random angle 4-25 deg, calibrated noise Var = k*counts,
+    random flips; 25% low-dose samples (x0.35-1.0 before noise);
+    30% with 1-2 dropout blocks zeroed in the tilted frame
+    (validity mask channel).
+    Tilted measurements are simulated with datagen.
+    forward_sharp (cubic sampling at the exact positions of
+    the measured warp + the measured gains + noise
+    k*s*(max(1-g,0) + 0.25)): a real tilted scan is a direct
+    measurement and carries NO resampling blur, so the
+    restoration input inverse(tilted) must carry ONE bilinear
+    blur as at test time - the validated bilinear forward()
+    would add a second one (see ITERATION NOTE below).
+    Input = inverse(simulated tilted); target = prova1; the net
+    predicts residuals on the deterministic inverse (zero-init
+    head = exact physics baseline at step 0).
+  - Spatial holdout: 4 fixed 15x30 blocks of prova1 (r0,c0 =
+    (15, 30), (15, 90), (30, 60), (45, 90)) never in
+    the training loss; early stopping on their simulated val L1.
+  - The network NEVER sees prova2 or the real ruotato.
+  - Test: restore the REAL ruotato (deterministic inverse +
+    network) and score against prova2 ALONE as truth (prova1 was
+    training data), on the tilted-scan footprint (3466 px of 60x120),
+    with eval.py: Pearson r, SSIM (shared data range per line),
+    bias %, contrast ratio cv_ratio.  Baseline and floor rows
+    are computed identically (floor = prova1 scored vs prova2).
+  - Both baseline and network input use forward_model.inverse
+    (tilt_pct_sum gains, session common mode included), so these
+    baseline numbers differ slightly from
+    deterministic_baseline.txt (truth=mean, per_deg gains).
+
+Model: RestorationUNet base=32, 469416 params, input
+8 element channels + validity + angle, residual output.
+Training: 1050 steps of batch 8 (Adam lr 1e-03, plateau decay),
+input style 'cubic', best val L1 0.01863 at step 450, wall clock 252 s.
+
+line   candidate                        r    SSIM   bias %  cv_ratio
+------------------------------------------------------------------
+Ca     deterministic (physics)     0.9639  0.9078    +2.96    0.9320
+Ca     physics + U-Net             0.9573  0.8934    +2.56    0.9835
+Ca     noise floor (p1 vs p2)      0.9892  0.9726    +2.37    0.9976
+
+Ti     deterministic (physics)     0.9158  0.8126    +3.01    0.8939
+Ti     physics + U-Net             0.9102  0.8076    +2.28    0.9418
+Ti     noise floor (p1 vs p2)      0.9310  0.8403    +2.39    0.9836
+
+Fe     deterministic (physics)     0.9791  0.9131    +1.65    0.9714
+Fe     physics + U-Net             0.9777  0.9105    +0.89    0.9872
+Fe     noise floor (p1 vs p2)      0.9938  0.9335    +1.25    0.9960
+
+Cu     deterministic (physics)     0.9566  0.8944    +1.02    0.9625
+Cu     physics + U-Net             0.9499  0.8789    +0.26    1.0034
+Cu     noise floor (p1 vs p2)      0.9873  0.9581    +0.31    0.9979
+
+PbLl   deterministic (physics)     0.9149  0.7297    -0.69    0.9355
+PbLl   physics + U-Net             0.9137  0.7276    -1.35    0.9857
+PbLl   noise floor (p1 vs p2)      0.9142  0.7344    -0.00    1.0068
+
+PbLa   deterministic (physics)     0.9750  0.9247    +0.23    0.9636
+PbLa   physics + U-Net             0.9717  0.9122    +0.21    1.0076
+PbLa   noise floor (p1 vs p2)      0.9932  0.9829    +0.14    1.0065
+
+PbLb   deterministic (physics)     0.9740  0.9187    -0.03    0.9637
+PbLb   physics + U-Net             0.9704  0.9052    -0.00    1.0086
+PbLb   noise floor (p1 vs p2)      0.9921  0.9788    -0.21    1.0057
+
+PbLg   deterministic (physics)     0.9413  0.8205    -0.94    0.9495
+PbLg   physics + U-Net             0.9374  0.8120    -1.39    0.9976
+PbLg   noise floor (p1 vs p2)      0.9475  0.8461    -1.00    1.0121
+
+SUCCESS CRITERIA (learned vs deterministic, per line):
+  cv->1   : |1 - cv_ratio| strictly smaller than baseline's
+  bias ok : |bias| within 1.5 pp of baseline's |bias|
+  r, SSIM : at or above baseline (tolerance 1e-4)
+
+line    cv->1   bias      r   SSIM    ALL
+----------------------------------------
+Ca        yes    yes     NO     NO     NO
+Ti        yes    yes     NO     NO     NO
+Fe        yes    yes     NO     NO     NO
+Cu        yes    yes     NO     NO     NO
+PbLl      yes    yes     NO     NO     NO
+PbLa      yes    yes     NO     NO     NO
+PbLb      yes    yes     NO     NO     NO
+PbLg      yes    yes     NO     NO     NO
+
+Lines meeting ALL criteria: 0/8 (cv->1: 8/8, bias ok: 8/8)
+
+ITERATION NOTE (v1 -> v2): the first training run used the
+validated bilinear forward() to simulate the tilted scan.  Its
+restoration inputs carry TWO bilinear resampling blurs (forward
+warp + inverse warp) where the real restoration input carries
+only ONE - the real ruotato is a direct measurement on the
+tilted grid, not a resampled frontal image (consistent with
+MVP-2 check [3], HF_sim < HF_real on all 8 lines).  Measured at
+7.7 deg, the deterministic inverse of bilinear-forward sims has
+cv_ratio 0.90-0.96 vs prova1 while the real one has 0.93-0.96
+vs prova2; a v1-trained net learned to undo the doubled blur
+and OVER-sharpened the real scan: cv_ratio overshoot up to
+1.051 (PbLa/PbLb), r 0.002-0.012 below baseline on all lines,
+0/8 criteria (cv->1 6/8, bias 8/8, r/SSIM 0/8).  v2 replaces
+the training-input simulation with cubic sampling at the exact
+warp positions (datagen.forward_sharp): mean |cv_sim - cv_real|
+drops from 0.023 to 0.012 (closer on 6/8 lines).  The test
+protocol and operator are unchanged.
+
+HARSH-REGIME DEMO (simulated, prova2 source - never in training):
+  20 deg tilt + 14x20 dropout block at (r0,c0)=(14,28) in the tilted frame;
+  r vs prova2 on the footprint and inside the warped hole (deterministic
+  physics cannot fill the hole; the U-Net inpaints from context):
+  line      r det    r net  r det(hole)  r net(hole)
+  Ca       0.7951   0.9621      -0.0727       0.5687
+  PbLa     0.6749   0.9630       0.1557       0.5897

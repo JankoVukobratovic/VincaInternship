@@ -1,0 +1,59 @@
+Deterministic restoration baseline - REAL ruotato -> frontal
+
+Restoration: inverse joint affine (script 08) + per-element tilt
+gain of script 11 at the nominal 7.7 deg (candidate 'warp + gain').
+Truth = mean(prova1, prova2), detector-summed maps; all metrics on
+the footprint of the warped tilted scan (3466 px of the 60x120 frame).
+Noise floor = prova2 scored against prova1 on the same footprint
+(independent noise in both maps - a candidate scored against the
+ less-noisy mean can legitimately sit slightly above it in r/SSIM).
+
+line   candidate                      r    SSIM   bias %  cv_ratio
+----------------------------------------------------------------
+Ca     warp only                 0.9688  0.9180    +5.28    0.9356
+Ca     warp + gain               0.9688  0.9169    +1.41    0.9356
+Ca     noise floor (p1 vs p2)    0.9892  0.9725    -2.31    1.0024
+
+Ti     warp only                 0.9347  0.8538    +4.48    0.9173
+Ti     warp + gain               0.9347  0.8526    +0.96    0.9173
+Ti     noise floor (p1 vs p2)    0.9310  0.8395    -2.33    1.0166
+
+Fe     warp only                 0.9828  0.9308    +0.60    0.9748
+Fe     warp + gain               0.9828  0.9307    +0.27    0.9748
+Fe     noise floor (p1 vs p2)    0.9938  0.9313    -1.23    1.0040
+
+Cu     warp only                 0.9626  0.9068    -0.40    0.9666
+Cu     warp + gain               0.9626  0.9070    -0.07    0.9666
+Cu     noise floor (p1 vs p2)    0.9873  0.9581    -1.22    1.0021
+
+PbLl   warp only                 0.9374  0.7858    +0.04    0.9530
+PbLl   warp + gain               0.9374  0.7855    -0.59    0.9530
+PbLl   noise floor (p1 vs p2)    0.9142  0.7353    -1.01    0.9932
+
+PbLa   warp only                 0.9794  0.9330    -0.96    0.9621
+PbLa   warp + gain               0.9794  0.9336    -0.25    0.9621
+PbLa   noise floor (p1 vs p2)    0.9932  0.9828    -0.14    0.9936
+
+PbLb   warp only                 0.9787  0.9284    -1.34    0.9628
+PbLb   warp + gain               0.9787  0.9292    -0.35    0.9628
+PbLb   noise floor (p1 vs p2)    0.9921  0.9788    +0.21    0.9943
+
+PbLg   warp only                 0.9568  0.8590    -1.45    0.9565
+PbLg   warp + gain               0.9568  0.8594    -0.84    0.9565
+PbLg   noise floor (p1 vs p2)    0.9475  0.8453    +1.01    0.9881
+
+Headroom to the noise floor (floor minus warp+gain; positive =
+room a learned model can still claim):
+
+line         dr    dSSIM   |bias|-|floor bias|
+------------------------------------------------
+Ca      +0.0204  +0.0556              -0.90 pp
+Ti      -0.0037  -0.0130              -1.37 pp
+Fe      +0.0110  +0.0006              -0.96 pp
+Cu      +0.0247  +0.0511              -1.15 pp
+PbLl    -0.0232  -0.0503              -0.42 pp
+PbLa    +0.0138  +0.0493              +0.11 pp
+PbLb    +0.0135  +0.0496              +0.14 pp
+PbLg    -0.0093  -0.0141              -0.17 pp
+
+Gain correction increases |bias| on: PbLl

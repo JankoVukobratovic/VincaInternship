@@ -1,0 +1,30 @@
+Canvas topography from detector disagreement
+(per-pixel weighted LS over 8 lines; slope component along the
+ tilt-experiment axis; sensitivities from the measured 7.7-deg
+ overlap tilt shift)
+
+line    k (%/deg)  res noise %  implied theta noise (deg)
+Ca          1.180        20.91                       17.7
+Ti          0.986        26.83                       27.2
+Fe          0.444        37.18                       83.7
+Cu          0.322        22.72                       70.6
+PbLl        0.523        42.28                       80.8
+PbLa        0.278         2.71                        9.8
+PbLb        0.229         3.44                       15.0
+PbLg        0.075        17.70                      235.7
+
+per-pixel theta uncertainty (propagated): 7.07 deg
+RMS theta, prova1 / prova2: 13.71 / 13.84 deg
+RMS noise (from scan pair): 7.15 deg
+RMS reproducible topographic signal: 11.77 deg
+cross-scan reproducibility of theta: r = 0.730  (7200 px)
+
+Tilt-law consistency (per-pixel chi2/dof of the one-parameter
+fit across the 8 lines; ~1 = residuals scale like geometry,
+>> 1 = line-specific/composition effects dominate):
+  median chi2/dof: prova1 0.85, prova2 0.85
+  pixels consistent with pure geometry (chi2/dof < 2): 88% / 89%
+
+VERDICT: a reproducible surface-slope signal is present -- the
+detector disagreement measures canvas relief (one slope
+component) at the ~degree scale from a single scan.

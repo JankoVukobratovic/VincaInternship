@@ -1,0 +1,29 @@
+Fusion showcase: simple summing vs learned N2N fusion
+(companion numbers of fusion_showcase.png; same SNR definition,
+ same checkerboard-B pixels as fusion_weighted.txt)
+
+SNR = mean((map_p1 + map_p2)/2) / (std(map_p1 - map_p2)/sqrt(2))
+cv_ratio = spatial contrast of the variant's average map vs the
+           summed map (fidelity guard: < 1 would mean blurring)
+
+[all_px]  all pixels, 3600 px
+line   variant       SNR     gain  cv_ratio
+PbLl   sum          5.51        -     1.000
+PbLl   learned      8.35   +51.6%     0.965
+Fe     sum          9.31        -     1.000
+Fe     learned     11.04   +18.5%     0.996
+
+[heldout_px]  pixels the network never saw (prova1 validation blocks), 563 px
+line   variant       SNR     gain  cv_ratio
+PbLl   sum          5.40        -     1.000
+PbLl   learned      9.11   +68.6%     0.913
+Fe     sum         10.64        -     1.000
+Fe     learned     13.67   +28.5%     0.989
+
+display-only gain factors (learned maps are in detector-A scale;
+multiplied by this scalar so both rows share one color scale):
+  PbLl   x 2.340
+  Fe     x 1.931
+
+The figure quotes the heldout_px SNR values -- the row of
+fusion_weighted.txt that the paper quotes.

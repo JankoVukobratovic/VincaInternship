@@ -178,6 +178,17 @@ with that in mind. Third, the repeatability floor of the pipeline is set
 by the two frontal scans, 0.96 % RMS on the element maps and 0.43 % on
 the vertical scale of the registration.
 
+A closure test ties the geometric model to the same standard
+(scripts/16_closure_test.py). Dividing the measured tilted-to-frontal
+ratio shift by the fitted stage-2 factor collapses the residuals from
+chi2/dof = 135 (largest 9.5 % at Ca Ka) to 3.8 (largest 1.75 %, most
+lines below 0.6 %): the model accounts for the tilt signature it was
+built to describe. Because the same eight points constrained the fit,
+this is consistency rather than independent validation - that would
+take a second tilt angle - and the residual 3.8 reflects bootstrap
+errors that carry counting statistics but not the 0.4-0.6 %
+scan-to-scan systematics quoted above.
+
 ## Map figures
 
 Fig. M shows what the two channels see differently and where. The ratio
@@ -197,6 +208,22 @@ complementary region, carrying the opposite sign at r = -0.24. The
 non-uniformity of the channel ratio, the scatter frame and the Hg
 rectangle are one acquisition geometry seen three ways, and the
 flat-field map divides all three out.
+
+The fine-scale residuals go one step further
+(scripts/17_canvas_topography.py): inverting them per pixel through the
+measured tilt response of the ratio turns the eight lines into repeated
+measurements of the LOCAL surface slope. The recovered slope map
+reproduces between the two frontal scans at r = 0.73 with an RMS
+topographic signal of ~12 degrees (per-pixel uncertainty ~7 degrees),
+and the one-parameter fit across the eight lines closes at a median
+chi2/dof of 0.85 with 88 % of pixels consistent with pure geometry --
+the residuals scale with energy the way the tilt law demands, which
+composition effects need not. The discarded detector difference thus
+carries a third measurement besides efficiency and geometry: a
+one-component relief map of the canvas from a single scan. Pixels on
+the sharp edges of the acquisition rectangle should be read with care
+(the smoothing that defines the residual overshoots there), and only
+the slope component along the tilt-experiment axis is visible.
 
 ## Positioning sensitivity
 

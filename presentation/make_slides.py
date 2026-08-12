@@ -455,6 +455,12 @@ if __name__ == "__main__":
                        15, True, ORANGE, False),
                       (" (six lines from Fe up, Pb Ll +69 %; Ca/Ti "
                        "kept on the sum)", 15, False, INK, False)]),
+                 (0, [("Canvas relief from one scan", 15, True, INK,
+                       False),
+                      (": local-slope map from the per-pixel ratio "
+                       "residuals, reproducible at r = 0.73 and "
+                       "tilt-law consistent (chi2/dof 0.85)",
+                       15, False, INK, False)]),
              ]), space_after=8)
     s.shapes.add_picture(
         os.path.join(RESULTS, "fusion_benchmark.png"),
@@ -503,6 +509,49 @@ if __name__ == "__main__":
               "characterized, the two channels fuse into a better "
               "measurement than their sum. Thank you; happy to take "
               "questions.")
+
+    # ---- backup A: fusion on the maps (Q&A) ---------------------------
+    s = blank_slide(prs)
+    add_title(s, "Backup - fusion seen on the maps",
+              sub="cross-scan noise panels: summed vs learned, "
+                  "held-out SNR annotated")
+    s.shapes.add_picture(
+        os.path.join(RESULTS, "fusion_showcase.png"),
+        Inches(2.07), Inches(1.45), height=Inches(5.85))
+    add_notes(s, "BACKUP - not part of the 8:00. If asked how the "
+              "fusion gain looks in practice: same signal structure, "
+              "visibly calmer noise panels; Pb Ll 5.4 to 9.1, Fe "
+              "10.6 to 13.7 on pixels the network never trained on. "
+              "Contrast guard cv = 0.91-0.99: not blurring.")
+
+    # ---- backup B: identifiability (Q&A) ------------------------------
+    s = blank_slide(prs)
+    add_title(s, "Backup - why not the individual take-off angles?")
+    add_text(s, Inches(0.9), Inches(1.8), SW - Inches(1.8), Inches(4.4),
+             bullets([
+                 (0, "Fitting both take-off angles directly returns "
+                     "~1e5-degree uncertainties: with a single tilt "
+                     "the shift is first-order in the RESPONSE, "
+                     "second-order in the asymmetry"),
+                 (0, [("Identifiable: the lever arm "
+                       "s = 0.53 ± 0.10 deg/deg - how fast the "
+                       "effective angles move per degree of tilt",
+                       17, True, INK, False)]),
+                 (0, "With the builder-confirmed mean take-off angle "
+                     "psi, the per-detector effective angles follow "
+                     "as psi ± s·theta (pending confirmation)"),
+                 (0, "Same story for the tilt angle itself: "
+                     "foreshortening at 7.7 deg sits near the "
+                     "registration floor (a no-tilt control pair "
+                     "returns “5.3 deg”) - hence the upper "
+                     "bound"),
+             ]), space_after=14)
+    add_notes(s, "BACKUP - not part of the 8:00. Use if the "
+              "abstract-vs-talk difference on viewing angles comes "
+              "up: the abstract promised per-detector angles; with "
+              "one tilt only the response is identifiable, and the "
+              "per-detector values need the nominal head geometry "
+              "from the instrument builder.")
 
     out = os.path.join(OUTDIR, "dual_detector_talk.pptx")
     prs.save(out)
