@@ -35,6 +35,12 @@ Metrics per element and per variant:
   cv_ratio, r_vs_sum : spatial contrast and shape of the variant's map
              against the summed map -- a denoiser that simply blurs the
              image also raises SNR, and these two columns catch it.
+  bias_pct : absolute level of the learned map against what the same
+             inverse-variance combination of the raw maps would give.
+             SNR, cv_ratio and r_vs_sum are all scale-invariant, so none
+             of them sees a systematic error in the intensity itself;
+             this column does, and it matters because element-to-element
+             ratios are what pigment identification uses.
 
 Subsets: "all_px" is checkerboard B over the whole grid. When the
 network's held-out pixel list is present, every variant is also
@@ -154,6 +160,30 @@ def fidelity_vs_sum(variant, reference, mask):
     return float(cv_v / cv_s), float(np.corrcoef(v, s)[0, 1])
 
 
+def ratio_at(kev):
+    """Handoff-2 R(E) at one line energy (1.0 if the curve is absent)."""
+    p = os.path.join(OUT_DIR, "handoff2_ratio_curve.csv")
+    if not os.path.exists(p):
+        return 1.0
+    with open(p, newline="") as f:
+        rows = [(float(r["kev"]), float(r["R"])) for r in csv.DictReader(f)]
+    ks = np.array([r[0] for r in rows])
+    vs = np.array([r[1] for r in rows])
+    return float(np.interp(kev, ks, vs))
+
+
+def level_bias(learned, m1, m2, key, mask):
+    """Learned level against the inverse-variance combination of the raw
+    maps, both in detector-A scale. Zero means the fusion is calibrated."""
+    r = ratio_at(_ELEMENTS_JSON[key]["kev"])
+    wa = r / (r + 1.0)
+    expect = {ds: wa * m1[ds] + (1.0 - wa) * (r * m2[ds])
+              for ds in DATASETS}
+    got = np.mean(0.5 * (learned["prova1"] + learned["prova2"])[mask])
+    ref = np.mean(0.5 * (expect["prova1"] + expect["prova2"])[mask])
+    return 100.0 * (got / ref - 1.0) if ref > 0 else np.nan
+
+
 def load_fused_maps():
     """Line maps of the N2N-fused cubes, plus the held-out pixel mask."""
     paths = {ds: os.path.join(FUSED_DIR, f"fused_{ds}.npy")
@@ -248,6 +278,8 @@ if __name__ == "__main__":
             if "learned" in variants:
                 row["snr_gain_learned_pct"] = 100.0 * (
                     row["snr_learned"] / row["snr_sum"] - 1.0)
+                row["bias_learned_pct"] = level_bias(
+                    variants["learned"], m1, m2, key, px)
             results.append(row)
 
     # ---- report --------------------------------------------------------
@@ -270,7 +302,7 @@ if __name__ == "__main__":
                 f" {'SNR sum':>9s} {'SNR wgt':>9s} {'gain':>7s}")
         if has_learned:
             head += (f" {'SNR lrn':>9s} {'gain':>7s}"
-                     f" {'cv lrn':>7s} {'r vs sum':>9s}")
+                     f" {'cv lrn':>7s} {'bias':>8s}")
         head += f" {'r sum':>7s} {'w10264':>7s}"
         lines_out += ["",
                       f"[{subset}]  {note}, {sub_rows[0]['n_px']} px",
@@ -284,7 +316,7 @@ if __name__ == "__main__":
                 line += (f" {row['snr_learned']:9.2f}"
                          f" {row['snr_gain_learned_pct']:+6.1f}%"
                          f" {row['cv_ratio_learned']:7.3f}"
-                         f" {row['r_vs_sum_learned']:9.4f}")
+                         f" {row['bias_learned_pct']:+7.1f}%")
             line += f" {row['r_sum']:7.4f} {row['w_share_10264']:7.2f}"
             lines_out.append(line)
         mg = np.mean([r["snr_gain_pct"] for r in sub_rows])
@@ -298,11 +330,22 @@ if __name__ == "__main__":
                 f"  learned map fidelity: mean cv ratio {mcv:.3f}"
                 " (1.0 = same spatial contrast as the summed map)")
     if has_learned:
+        b = [abs(r["bias_learned_pct"]) for r in results
+             if r["subset"] == subset]
         lines_out += [
             "",
-            "cv ratio and r vs sum guard the SNR column: a network that"
-            " blurs the map would raise SNR while cv ratio falls well"
-            " below 1.",
+            "cv ratio guards the SNR column: a network that blurs the map"
+            " would raise SNR while cv ratio falls below 1.",
+            "",
+            "bias is the absolute level of the learned map against the same"
+            " inverse-variance",
+            "combination of the raw maps. SNR, cv and r are all"
+            " scale-invariant and cannot see it.",
+            f"Worst line {max(b):.0f}%, median {np.median(b):.0f}%: the fused"
+            " maps carry a per-line gain",
+            "error and need calibrating against the summed maps before"
+            " element-to-element",
+            "ratios are read off them.",
         ]
 
     print("\n".join(lines_out))

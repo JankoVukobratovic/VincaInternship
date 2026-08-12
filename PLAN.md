@@ -335,11 +335,38 @@ strukturom koju propisuje izmereno R(E), a razlika između dve stope
 učenja je manja od razlike između šema težinjenja — dakle nije artefakt
 štimovanja.
 
-Kontrolne kolone `cv_ratio` (srednje 0.967) i `r_vs_sum` (≥ 0.95 svuda)
-pokazuju da dobitak nije zamućenje. One i lociraju dve preostale
-negativne linije: Ca ima cv 0.69 (ostatak skupljanja ka srednjem
-spektru, tamo detektor B skoro ništa ne vidi) i Ti cv 1.16 (mreža dodaje
-varijansu).
+Kontrolne kolone `cv_ratio` (srednje 0.967) i `r_vs_sum` (0.947 na Ca,
+≥ 0.98 drugde) pokazuju da dobitak nije zamućenje.
+
+**Nađeno u fact-checku 2026-08-12 — apsolutni nivo.** SNR, cv i r su svi
+invarijantni na skalu, pa nijedan ne vidi grešku u samom intenzitetu.
+Merena posebno (kolona `bias_learned_pct` u 09): −3 do −7% na Fe, Cu i
+Pb linijama, ali **+33% na Ca i −30% na Ti**. Uzrok nije po-linijski
+ofset nego izobličenje spektra na niskim energijama: fuzovani kontinuum
+je 1.4× nivoa detektora A na 4.2–4.8 keV, 2.7× na 4.0–4.2 keV i 2.1×
+ispod 3.5 keV, dok je Pb oblast ravna na 0.92×. B grana se množi sa
+R(E) koje na Ca dostiže 6, pa se svaka pozitivna pristrasnost u
+niskoodbrojnim kanalima 19511 tako i uvećava; kod Ca se na to dodaje i
+to što donji fon (3.14–3.39 keV) leži ispod treniranog prozora.
+
+Slika je bar konzistentna: gde je oblik spektra očuvan (Fe, Cu, Pb —
+nivo unutar 7%) fuzija dobija 17–69% SNR-a; gde nije (Ca, Ti) gubi.
+
+**Dve popravke probane, obe pale** (2026-08-12):
+
+1. *Prozor 3.0–15.5 keV* (da fonovi Ca budu unutra) — Ca se raspada:
+   intenzitet −90%, cv 5.0. Dodati kanali nose R do 34, pa varijansa
+   skaliranog targeta eksplodira baš tamo.
+2. *Izbacivanje B grane ispod R = 2.5* (uklanja put kojim se pristrasnost
+   detektora 19511 množi sa R) — Ti pada na −25.7% (bilo −3.7%), Ca bias
+   raste na +41%.
+
+Dakle greška je u samoj rekonstrukciji niskoenergetskog kontinuuma, ne u
+skaliranju ni u kombinovanju. **Odluka za rad: naučena fuzija se navodi
+za šest linija od Fe naviše** (nivo očuvan unutar 7%, dobitak
+0.6–68.6%), Ca i Ti ostaju na prostom zbiru. Sledeći kandidat je
+funkcija cilja koja čuva integrisani intenzitet linije umesto MSE po
+kanalu.
 
 Izbor modela: šema težinjenja po argumentu o varijansi, stopa učenja po
 validacionom gubitku. Pošteno napomenuti: benchmark je preračunavan dok

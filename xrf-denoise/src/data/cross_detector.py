@@ -35,7 +35,12 @@ import numpy as np
 import torch
 from torch.utils.data import Dataset
 
-# loss window (keV): outside this range the ratio curve is extrapolation
+# Loss window (keV). 3.0 was tried, to bring the Ca background sidebands
+# (down to 3.14 keV) inside the supervised range: it fails badly. Those
+# channels carry R up to 34, so the rescaled target's variance explodes
+# there and the reconstruction degrades exactly where it was meant to
+# improve (fused Ca intensity -90%, cv 5.0). The window stays at 3.5 and
+# the Ca bias is handled downstream instead.
 LOSS_LO_KEV = 3.5
 LOSS_HI_KEV = 15.5
 

@@ -60,6 +60,8 @@ from src.models.unet1d import UNet1D
 cfg = Config()
 
 SCANS = {"prova1": (60, 120), "prova2": (60, 120), "ruotato": (45, 80)}
+# above this response ratio the B branch is dropped from the fusion
+R_DROP_B = 2.5
 HANDOFF2_CURVE = (VINCA_ROOT / "results" / "detector_diff"
                   / "handoff2_ratio_curve.csv")
 WARM_START = PROJECT_ROOT / "experiments" / "A_scratch" / "checkpoints" / "best_model.pt"
@@ -167,7 +169,15 @@ def fuse_scan(model, cube_a, cube_b, curve, global_scale, device,
     fb = cube_b.reshape(-1, n_ch).astype(np.float32)
     out = np.empty_like(fa)
     r = torch.from_numpy(np.asarray(curve, dtype=np.float32)).to(device)
-    wa = r / (r + 1.0) if weights == "invvar" else torch.full_like(r, 0.5)
+    if weights == "equal":
+        wa = torch.full_like(r, 0.5)
+    else:
+        wa = r / (r + 1.0)
+        if weights == "invvar_capped":
+            # Where R is large the B branch is already worth little (R:1),
+            # but bringing it over multiplies whatever bias it carries by
+            # R as well. Below the crossing point it is dropped outright.
+            wa = torch.where(r > R_DROP_B, torch.ones_like(wa), wa)
     wb = 1.0 - wa
     for i in range(0, fa.shape[0], batch):
         xa = torch.from_numpy(fa[i:i + batch] / global_scale).unsqueeze(1).to(device)
@@ -192,8 +202,11 @@ if __name__ == "__main__":
                     help="per-channel loss weights: 'invvar' compensates "
                          "R(E), 'poisson' the full inverse target variance")
     ap.add_argument("--fuse-weights", default="invvar",
-                    choices=("invvar", "equal"),
+                    choices=("invvar", "invvar_capped", "equal"),
                     help="how the two directions are combined at export")
+    ap.add_argument("--loss-lo", type=float, default=None,
+                    help="lower edge of the loss window in keV "
+                         "(default: the module constant)")
     ap.add_argument("--tag", default="",
                     help="suffix for checkpoint and fused-cube names, so "
                          "ablation runs do not overwrite the main model")
@@ -226,7 +239,11 @@ if __name__ == "__main__":
     n_ch = scan_specs["prova1"][0].shape[2]
     splits, record = build_cross_detector_splits(scan_specs, seed=cfg.seed)
 
-    mask_np = make_channel_mask(n_ch, cfg.cal_slope, cfg.cal_intercept)
+    lo_kev = args.loss_lo if args.loss_lo else None
+    mask_np = (make_channel_mask(n_ch, cfg.cal_slope, cfg.cal_intercept,
+                                 lo_kev=lo_kev)
+               if lo_kev else
+               make_channel_mask(n_ch, cfg.cal_slope, cfg.cal_intercept))
     if not HANDOFF2_CURVE.exists():
         sys.exit(f"ERROR: {HANDOFF2_CURVE} missing - run "
                  "scripts/07_geometry_fit.py in the main repo (handoff 2).")
@@ -261,7 +278,10 @@ if __name__ == "__main__":
     print(f"train {len(datasets['train'])} / val {len(datasets['val'])}"
           f" / test {len(datasets['test'])} examples"
           f"   global scale {global_scale:.1f}")
-    print(f"loss window: {int(mask_np.sum())}/{n_ch} channels (3.5-15.5 keV)")
+    e_lo = np.flatnonzero(mask_np)[0] * cfg.cal_slope + cfg.cal_intercept
+    e_hi = np.flatnonzero(mask_np)[-1] * cfg.cal_slope + cfg.cal_intercept
+    print(f"loss window: {int(mask_np.sum())}/{n_ch} channels"
+          f" ({e_lo:.2f}-{e_hi:.2f} keV)")
 
     suffix = f"_{args.tag}" if args.tag else ""
 

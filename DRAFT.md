@@ -237,9 +237,8 @@ Fig. [tilt].
 - Final figure numbering and Table 1 formatting. Table 1 rows are
   emitted by script 07 into
   `results/detector_diff/handoff2_ratio_curve.md`.
-- Ca (cv 0.69) and Ti (cv 1.16) in the learned fusion: the two lines
-  that still lose. Both are shrinkage/variance effects at low counts
-  rather than pipeline errors, and a map-level validation criterion
-  (Poisson thinning inside the training scans) is the natural next step
-  -- validation MSE demonstrably does not rank models the way map SNR
-  does.
+- Ca and Ti in the learned fusion: reported on the summed maps for now.
+  Two remedies were tried and failed (see above); the next candidates
+  are an intensity-preserving training objective and a map-level
+  validation criterion, since validation MSE demonstrably does not rank
+  models the way map SNR does.
