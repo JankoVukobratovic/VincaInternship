@@ -313,3 +313,29 @@ naspram sumirane mape, srednje 0.997 — dakle dobitak nije zamućenje) i
 `r_vs_sum` (≥ 0.98 svuda). Dve ostavke za B: Ti ima cv 1.32 (mreža tu
 pojačava šum) i Ca 0.75 (delimično glačanje), pa su ta dva broja još
 neupotrebljiva za tvrdnju.
+
+### 8.11 B6 — osetljivost na pozicioniranje (2026-08-12)
+
+`scripts/11_positioning_sensitivity.py`: frontalna mapa se registruje u
+kadar nagnutog (afina transformacija iz 08) i poredi piksel-po-piksel,
+pa se deli uglom. Rezultat je *diferencijalna* greška — zajednički mod
+(−0.40 %, razlika ukupnog nivoa između skenova) je uklonjen jer je
+degenerisan sa driftom sesije; ono što ostaje pogađa odnose elemenata,
+tj. baš ono na čemu počiva identifikacija pigmenata.
+
+Na sumiranoj mapi: **Ca +0.50 %/°, Ti +0.45 %/°**, Fe i Cu u šumu
+(±0.04 %/°), **Pb Lβ −0.13 %/°**, Pb Lγ −0.08 %/°. Raspon između
+ekstrema **0.63 procentna poena po stepenu**. Prag ponovljivosti
+(prova1 vs prova2, ista geometrija) je 0.96 % RMS, tj. 0.12 %/° — Fe,
+Cu i Pb Lγ ga ne prelaze i tako su označeni.
+
+**Ugao je gornja granica, pa su ovo donje granice**: ako je platno bilo
+nagnuto manje od 7.7°, ista promena mape se desila preko manje stepeni,
+pa je greška po stepenu veća. To je obrnuto od uobičajenog čitanja
+gornje granice i tako mora biti formulisano u radu.
+
+Usput: implicirani pomeraj R iz ovih per-detektorskih brojeva slaže se
+sa 08 po obliku i znaku, ali je sistematski niži (RMS 0.73 pp, max 1.2
+pp na Ca). To je razlika između poređenja regiona (08) i poređenja
+piksela (11) i treba je citirati kao sistematiku na figuri tilt
+pomeraja.

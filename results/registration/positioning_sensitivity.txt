@@ -1,0 +1,63 @@
+Positioning sensitivity of the element maps
+(frontal vs tilted after joint affine registration, summed
+ detectors; common mode removed, see below)
+
+mounting angle          : 7.7 deg (upper bound -> the
+                          per-degree values are lower bounds)
+common mode removed     : -0.40% (median over the reliable lines;
+                          overall level difference between the scans)
+repeatability floor     : 0.96% RMS (prova1 vs prova2, same geometry)
+
+line      keV   tilt %    rel %    %/deg  baseline %  clears floor
+K        3.31    +4.33    +4.73   +0.615       -1.46           yes  (excluded)
+Ca       3.69    +3.42    +3.81   +0.495       -1.71           yes
+Ti       4.51    +3.09    +3.49   +0.453       -1.42           yes
+Fe       6.40    -0.07    +0.33   +0.043       -0.49            no
+Cu       8.04    -0.73    -0.33   -0.043       -0.83            no
+Zn       8.64    -1.65    -1.25   -0.163       -0.65            no  (excluded)
+PbLl     9.19    +0.23    +0.63   +0.082       +0.14           yes
+PbLa    10.54    -1.11    -0.72   -0.093       -0.14           yes
+PbLb    12.61    -1.40    -1.00   -0.130       +0.12           yes
+PbLg    14.77    -1.01    -0.61   -0.080       +1.20            no
+
+Cross-check -- tilt shift of R = d10264/d19511 implied by the
+per-detector changes above, against the region-level ratios of
+script 08 (same quantity, independent estimator):
+
+line    this (%)   08 (%)  diff (pp)
+Ca         +8.29    +9.51      -1.22
+Ti         +6.75    +7.89      -1.14
+Fe         +3.19    +3.48      -0.29
+Cu         +2.44    +2.51      -0.07
+PbLl       +3.65    +4.11      -0.46
+PbLa       +1.91    +2.16      -0.25
+PbLb       +1.54    +1.78      -0.24
+PbLg       -0.41    +0.58      -0.99
+
+RMS difference 0.73 pp, always the same sign (this estimator reads lower).
+The two agree on the shape and on every sign; the offset is the
+systematic of region-matching against pixel-matching and should
+be quoted as such on the tilt-shift figure.
+
+Spread across the reliable lines: 4.8 percentage points over 7.7 deg,
+i.e. 0.63 pp/deg between the extremes. Largest single sensitivity:
+Ca at +0.495 %/deg.
+
+Reading: a mounting error of one degree changes the light-element
+maps relative to the heavy-element maps by the amounts above. The
+absolute level of a map is not recoverable this way (it is
+degenerate with session drift), but the element-to-element ratios
+that pigment identification relies on carry exactly this error.
+
+Per detector (the two channels move oppositely -- the tilt tips
+the take-off geometry one way for 10264 and the other for 19511):
+
+line    %/deg 10264  %/deg 19511  %/deg sum
+Ca           +0.479       -0.204     +0.495
+Ti           +0.535       +0.030     +0.453
+Fe           +0.058       +0.009     +0.043
+Cu           -0.058       -0.011     -0.043
+PbLl         +0.163       +0.054     +0.082
+PbLa         -0.124       -0.009     -0.093
+PbLb         -0.184       -0.021     -0.130
+PbLg         -0.281       +0.130     -0.080

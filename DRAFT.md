@@ -92,3 +92,8 @@ compare with the builder-confirmed angle if it arrives.]
 - Final figure numbering and Table 1 formatting. Table 1 rows are
   emitted by script 07 into
   `results/detector_diff/handoff2_ratio_curve.md`.
+- Positioning sensitivity (script 11): the abstract's practical mounting
+  error, measured. Numbers and figure in
+  `results/registration/positioning_sensitivity.*`; prose still to
+  write, and the per-degree values must be presented as lower bounds
+  because the angle is an upper bound.
