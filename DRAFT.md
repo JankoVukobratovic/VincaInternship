@@ -29,7 +29,7 @@ A three-parameter detector model — an energy-independent factor, a
 differential low-energy absorber (Be-equivalent), and the ratio of
 active Si thicknesses — reproduces the frontal ratio curve across two
 orders of magnitude (Fig. X, left). The fitted absorber is
-974 +- 1 um Be-equivalent, i.e. 40-100x a typical SDD entrance
+973 +- 2 um Be-equivalent, i.e. 40-100x a typical SDD entrance
 window. The low-energy imbalance therefore cannot be a window
 difference: it corresponds to roughly 15-20 cm of extra air path (or
 equivalent collimation) in front of detector 19511. [TODO: confirm

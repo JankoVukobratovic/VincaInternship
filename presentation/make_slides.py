@@ -186,7 +186,7 @@ if __name__ == "__main__":
                 "IDArtScience, Rome   ·   Vinča Institute of "
                 "Nuclear Sciences / VINARH", 13, False, GRAY, False)],
               "GAP",
-              [("Heidelberg, 2026", 14, False, GRAY, True)]],
+              [("EuCAIFCon 2026 - Heidelberg", 14, False, GRAY, True)]],
              align=PP_ALIGN.CENTER)
     add_notes(s, "0:00-0:15\n"
               "Good morning. I will show how a dual-detector MA-XRF "
@@ -344,7 +344,7 @@ if __name__ == "__main__":
                  (0, "Three-parameter model: gain × differential "
                      "absorber × Si-thickness ratio"),
                  (0, "Reproduces R(E) over two orders of magnitude"),
-                 (0, [("Fitted absorber: 974 ± 1 µm "
+                 (0, [("Fitted absorber: 973 ± 2 µm "
                        "Be-equivalent", 17, True, INK, False),
                       (" - 40-100× a real SDD window",
                        17, False, INK, False)]),
@@ -435,32 +435,44 @@ if __name__ == "__main__":
     # ---- 9 what this buys --------------------------------------------
     s = blank_slide(prs)
     add_title(s, "What the characterization buys",
-              sub="ongoing - full results in the paper")
-    add_text(s, Inches(0.9), Inches(1.8), SW - Inches(1.8), Inches(4.6),
+              sub="fusion benchmark: cross-scan SNR on held-out pixels")
+    add_text(s, Inches(0.7), Inches(1.45), SW - Inches(1.4), Inches(2.1),
              bullets([
-                 (0, [("Geometric non-uniformity map", 18, True, INK,
+                 (0, [("Flat-field map", 15, True, INK, False),
+                      (": RMS ≈ 9 %, reproduced across scans "
+                       "(r = 0.70) - and it is the scatter-artifact "
+                       "geometry (r = 0.86)", 15, False, INK, False)]),
+                 (0, [("Mounting-error price list", 15, True, INK,
                        False),
-                      (" from registered log-ratio maps - the "
-                       "“flat-field” of the abstract",
-                       18, False, INK, False)]),
-                 (0, [("Detector fusion", 18, True, INK, False),
-                      (" weighted by the measured efficiency ratios - "
-                       "and a learned, self-supervised variant "
-                       "(two detectors = two independent noise "
-                       "realizations)", 18, False, INK, False)]),
-                 (0, [("Mounting-error estimate", 18, True, INK, False),
-                      (" per element, in %/degree, from the measured "
-                       "tilt response", 18, False, INK, False)]),
-                 (0, [("Canvas-topography map", 18, True, INK, False),
-                      (" - per-pixel tilt regression from a single "
-                       "frontal scan", 18, False, INK, False)]),
-             ]), space_after=16)
+                      (": 0.50 %/° (Ca), 0.45 %/° (Ti), "
+                       "≤ 0.13 %/° (Pb) - lower bounds",
+                       15, False, INK, False)]),
+                 (0, [("Fusion", 15, True, INK, False),
+                      (": inverse-variance +0.9 % - the null is a "
+                       "finding (Poisson-limited channels); ",
+                       15, False, INK, False),
+                      ("learned N2N +17.7 % mean SNR",
+                       15, True, ORANGE, False),
+                      (" (six lines from Fe up, Pb Ll +69 %; Ca/Ti "
+                       "kept on the sum)", 15, False, INK, False)]),
+             ]), space_after=8)
+    s.shapes.add_picture(
+        os.path.join(RESULTS, "fusion_benchmark.png"),
+        Inches(1.17), Inches(3.45), width=Inches(11.0))
     add_notes(s, "7:15-7:45\n"
-              "What this is for, in practice. Each item reuses the "
-              "numbers from the previous slides: the ratios weight "
-              "the fusion, the tilt response prices a mounting error, "
-              "the per-pixel ratios map the canvas relief. These are "
-              "being finalized for the paper.")
+              "Everything here reuses the earlier numbers. The "
+              "flat-field is reproducible and is literally the "
+              "scatter-artifact geometry - one acquisition story. The "
+              "weighting null is itself a finding: the channels are "
+              "Poisson-limited, no scalar reweighting can win. The "
+              "learned fusion goes beyond scalars: two detectors are "
+              "two noise realizations of the same spectrum - "
+              "Noise2Noise, no clean targets - and it gains 17.7 "
+              "percent on pixels it never trained on. We quote it "
+              "only where the absolute level is preserved; Ca and Ti "
+              "stay on the sum. If asked: validation MSE does not "
+              "rank these models like map SNR does - MSE rewards "
+              "shrinking to the mean; hence the contrast guard.")
 
     # ---- 10 conclusions ----------------------------------------------
     s = blank_slide(prs)
@@ -470,14 +482,16 @@ if __name__ == "__main__":
                  (0, "Detector difference + one tilted scan = "
                      "geometry-resolved characterization, with no "
                      "dedicated calibration measurements"),
-                 (0, "Per-element efficiency ratios with "
-                     "uncertainties, spanning 5.8 to 0.63"),
-                 (0, "Detector vs geometry cleanly separated; "
-                     "effective take-off response 0.5°/° of "
-                     "tilt; matrix scale Ec ≈ 3.6 keV"),
+                 (0, "Per-element efficiency ratios (5.8 → 0.63); "
+                     "detector vs geometry separated: take-off "
+                     "response 0.5°/°, matrix scale Ec ≈ 3.6 keV"),
+                 (0, [("Self-supervised fusion of the two channels: "
+                       "+17.7 % SNR over summing on held-out pixels",
+                       17, True, INK, False)]),
                  (0, [("The data self-report their geometry: tilt "
-                       "≲ 8°, session drift 0.43 %",
-                       17, True, ORANGE, False)]),
+                       "≲ 8°, session drift 0.43 %, flat-field = "
+                       "the artifact geometry", 17, True, ORANGE,
+                       False)]),
                  (0, "GAP"),
                  (0, [("Data and code: github.com/JankoVukobratovic/"
                        "VincaInternship", 15, False, GRAY, False)]),
@@ -485,8 +499,10 @@ if __name__ == "__main__":
     add_notes(s, "7:45-8:00\n"
               "One sentence to leave with: the signal everyone throws "
               "away is enough to characterize the instrument - "
-              "including the angle nobody wrote down. Thank you; "
-              "happy to take questions.")
+              "including the angle nobody wrote down - and, once "
+              "characterized, the two channels fuse into a better "
+              "measurement than their sum. Thank you; happy to take "
+              "questions.")
 
     out = os.path.join(OUTDIR, "dual_detector_talk.pptx")
     prs.save(out)
