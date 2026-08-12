@@ -315,5 +315,58 @@ if __name__ == "__main__":
         wtr.writeheader()
         wtr.writerows(results)
 
+    # ---- figure --------------------------------------------------------
+    import matplotlib                                    # noqa: E402
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt                      # noqa: E402
+
+    subset = "heldout_px" if "heldout_px" in subsets else "all_px"
+    sub = [r for r in results if r["subset"] == subset]
+    x = np.arange(len(sub))
+    labels = [r["line"] for r in sub]
+
+    fig, (axa, axb) = plt.subplots(
+        1, 2, figsize=(11, 4.0), layout="constrained",
+        gridspec_kw={"width_ratios": [1.35, 1]})
+
+    width = 0.26
+    series = [("sum", "summed", "0.55"), ("weighted", "inverse-variance", "C0")]
+    if has_learned:
+        series.append(("learned", "learned (N2N)", "C3"))
+    for i, (key, label, colour) in enumerate(series):
+        axa.bar(x + (i - (len(series) - 1) / 2) * width,
+                [r[f"snr_{key}"] for r in sub], width, label=label,
+                color=colour)
+    axa.set_xticks(x)
+    axa.set_xticklabels(labels)
+    axa.set_ylabel("cross-scan SNR")
+    axa.set_xlabel("emission line")
+    axa.set_title(f"Fusion levels ({subset.replace('_', ' ')})")
+    axa.legend(fontsize=8)
+    axa.grid(alpha=0.3, axis="y")
+
+    axb.axhline(0, color="gray", lw=0.8)
+    axb.plot(x, [r["snr_gain_pct"] for r in sub], "o-", color="C0",
+             label="inverse-variance")
+    if has_learned:
+        axb.plot(x, [r["snr_gain_learned_pct"] for r in sub], "D-",
+                 color="C3", label="learned (N2N)")
+        for i, r in enumerate(sub):
+            if r["cv_ratio_learned"] < 0.85 or r["cv_ratio_learned"] > 1.15:
+                axb.annotate(f"cv {r['cv_ratio_learned']:.2f}", (i, 0),
+                             xytext=(0, -22), textcoords="offset points",
+                             ha="center", fontsize=7, color="0.35")
+    axb.set_xticks(x)
+    axb.set_xticklabels(labels)
+    axb.set_ylabel("SNR gain over summing (%)")
+    axb.set_xlabel("emission line")
+    axb.set_title("Gain over the summed map")
+    axb.legend(fontsize=8)
+    axb.grid(alpha=0.3)
+
+    fig_path = os.path.join(OUT_DIR, "fusion_benchmark.png")
+    fig.savefig(fig_path, dpi=200)
+
     print(f"\nSaved: {os.path.join(OUT_DIR, 'fusion_weighted.txt')}")
     print(f"Saved: {os.path.join(OUT_DIR, 'fusion_weighted.csv')}")
+    print(f"Saved: {fig_path}")

@@ -91,6 +91,26 @@ def load_cubes(processed: Path) -> dict:
     return scan_specs
 
 
+def line_window_mask(n_ch, slope, intercept):
+    """Channels inside the +-hw windows of the eight reliable lines.
+
+    The trained loss covers 3.5-15.5 keV, most of which is continuum and
+    scatter. Map quality depends on the line windows alone, and the two
+    criteria do not rank models the same way -- a model can fit the bulk
+    spectrum better while flattening the Ca line. Model selection uses
+    this mask; see the ablation in scripts/13.
+    """
+    with open(VINCA_ROOT / "src" / "elements.json") as fh:
+        els = json.load(fh)
+    keys = ["Ca", "Ti", "Fe", "Cu", "PbLl", "PbLa", "PbLb", "PbLg"]
+    energy = np.arange(n_ch) * slope + intercept
+    m = np.zeros(n_ch, dtype=bool)
+    for k in keys:
+        hw = els[k].get("hw", 0.30)
+        m |= np.abs(energy - els[k]["kev"]) <= hw
+    return m
+
+
 def masked_mse(pred, target, mask, weight=None):
     """MSE over the loss window only (mask broadcast over the batch).
 
@@ -168,11 +188,21 @@ if __name__ == "__main__":
     ap.add_argument("--device", default="auto")
     ap.add_argument("--no-warm-start", action="store_true")
     ap.add_argument("--loss-weight", default="invvar",
-                    choices=("invvar", "none"),
-                    help="per-channel loss weights compensating R(E)")
+                    choices=("invvar", "poisson", "none"),
+                    help="per-channel loss weights: 'invvar' compensates "
+                         "R(E), 'poisson' the full inverse target variance")
     ap.add_argument("--fuse-weights", default="invvar",
                     choices=("invvar", "equal"),
                     help="how the two directions are combined at export")
+    ap.add_argument("--tag", default="",
+                    help="suffix for checkpoint and fused-cube names, so "
+                         "ablation runs do not overwrite the main model")
+    ap.add_argument("--init-from", default="",
+                    help="checkpoint to load instead of this tag's own "
+                         "(for re-exporting one model under another config)")
+    ap.add_argument("--eval-only", action="store_true",
+                    help="score a checkpoint on the validation split with "
+                         "both criteria (full window and line windows)")
     ap.add_argument("--export-only", action="store_true",
                     help="skip training, re-export cubes from the checkpoint")
     ap.add_argument("--smoke", action="store_true",
@@ -214,7 +244,8 @@ if __name__ == "__main__":
         name: XRFCrossDetectorDataset(
             parts, ratio_curve=curves, global_scale=global_scale,
             loss_mask=mask_np,
-            return_weight=(args.loss_weight == "invvar"))
+            return_weight={"invvar": "ratio", "poisson": "poisson",
+                           "none": False}[args.loss_weight])
         for name, parts in splits.items()
     }
     if args.smoke:
@@ -231,6 +262,8 @@ if __name__ == "__main__":
           f" / test {len(datasets['test'])} examples"
           f"   global scale {global_scale:.1f}")
     print(f"loss window: {int(mask_np.sum())}/{n_ch} channels (3.5-15.5 keV)")
+
+    suffix = f"_{args.tag}" if args.tag else ""
 
     # ---- model ---------------------------------------------------------
     model = UNet1D(in_channels=1, base_filters=cfg.base_filters,
@@ -249,6 +282,22 @@ if __name__ == "__main__":
     model = model.to(device)
     mask = torch.from_numpy(mask_np).to(device).float().view(1, 1, -1)
 
+    if args.eval_only:
+        src = Path(args.init_from) if args.init_from else (
+            EXP_DIR / "checkpoints" / f"best_model{suffix}.pt")
+        model.load_state_dict(torch.load(src, map_location=device,
+                                         weights_only=False)["model_state_dict"])
+        lm = line_window_mask(n_ch, cfg.cal_slope, cfg.cal_intercept)
+        full = torch.from_numpy(mask_np).to(device).float().view(1, 1, -1)
+        lines_m = torch.from_numpy(lm & mask_np).to(device).float().view(1, 1, -1)
+        val = DataLoader(datasets["val"], batch_size=args.batch_size)
+        v_full = run_epoch(model, val, full, device)
+        v_line = run_epoch(model, val, lines_m, device)
+        print(f"  {src.name}:  val(full window) = {v_full:.6f}"
+              f"   val(line windows, {int((lm & mask_np).sum())} ch)"
+              f" = {v_line:.6f}")
+        sys.exit(0)
+
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr,
                                  weight_decay=cfg.weight_decay)
     sched = torch.optim.lr_scheduler.ReduceLROnPlateau(
@@ -258,7 +307,8 @@ if __name__ == "__main__":
     history, best_val, best_epoch, t0 = [], float("inf"), -1, time.time()
     # a smoke run must never overwrite a real checkpoint
     ckpt_path = EXP_DIR / "checkpoints" / (
-        "smoke_model.pt" if args.smoke else "best_model.pt")
+        "smoke_model.pt" if args.smoke else f"best_model{suffix}.pt")
+    load_path = Path(args.init_from) if args.init_from else ckpt_path
     for epoch in range(0 if not args.export_only else args.epochs, args.epochs):
         tr = run_epoch(model, loaders["train"], mask, device, optimizer)
         va = run_epoch(model, loaders["val"], mask, device)
@@ -279,7 +329,7 @@ if __name__ == "__main__":
             print(f"  early stop (no improvement in {args.patience} epochs)")
             break
 
-    if args.export_only or args.smoke:
+    if args.export_only or args.smoke:  # noqa: keep the record intact
         # a smoke run must not overwrite the record of a real run either
         print(f"{'export-only' if args.export_only else 'smoke'}:"
               f" {ckpt_path.relative_to(PROJECT_ROOT)},"
@@ -287,7 +337,7 @@ if __name__ == "__main__":
     else:
         print(f"best val {best_val:.6f} at epoch {best_epoch}"
               f"  -> {ckpt_path.relative_to(PROJECT_ROOT)}")
-        with open(EXP_DIR / "results" / "history.json", "w") as fh:
+        with open(EXP_DIR / "results" / f"history{suffix}.json", "w") as fh:
             json.dump({"history": history, "best_epoch": best_epoch,
                        "best_val": best_val, "global_scale": global_scale,
                        "warm_start": warm, "epochs_run": len(history),
@@ -301,13 +351,15 @@ if __name__ == "__main__":
         sys.exit(0)
 
     # ---- export fused cubes for the benchmark --------------------------
-    model.load_state_dict(torch.load(ckpt_path, map_location=device,
+    model.load_state_dict(torch.load(load_path, map_location=device,
                                      weights_only=False)["model_state_dict"])
+    print(f"  exporting from {Path(load_path).name}"
+          f"  (fuse weights: {args.fuse_weights})")
     for scan in ("prova1", "prova2"):
         ca, cb = scan_specs[scan]
         fused = fuse_scan(model, ca, cb, curves[scan], global_scale, device,
                           weights=args.fuse_weights)
-        out = processed / f"fused_{scan}.npy"
+        out = processed / f"fused_{scan}{suffix}.npy"
         np.save(out, fused.astype(np.float32))
         print(f"  fused {scan}: {fused.shape} -> {out.name}"
               f"  (mean counts/px {fused.sum(axis=2).mean():.0f})")

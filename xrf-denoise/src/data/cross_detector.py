@@ -222,14 +222,22 @@ class XRFCrossDetectorDataset(Dataset):
         If False, only direction 0 (A -> B) is served.
     loss_mask : np.ndarray (C,) bool, optional
         Exposed as ``self.loss_mask`` (torch.bool) for masked losses.
-    return_weight : bool
-        If True each item is ``(x, y, w)`` with per-channel weights that
-        undo the variance the rescaling introduces. Scaling detector B
-        up by R multiplies its variance by R^2 while the mean only grows
-        by R, so a plain MSE is dominated by the low-energy channels
-        where R ~ 6 -- exactly where the Ca line sits. The weights are
-        1/R for direction 0 and R for direction 1, i.e. proportional to
-        the inverse target variance up to the per-pixel count level.
+    return_weight : {False, 'ratio', 'poisson'}
+        Per-channel loss weights, returned as a third item ``(x, y, w)``.
+
+        ``'ratio'`` compensates only the rescaling: scaling detector B up
+        by R multiplies its variance by R^2 while the mean grows by R, so
+        a plain MSE is dominated by the low-energy channels where R ~ 6.
+        Weights are 1/R (direction 0) and R (direction 1).
+
+        ``'poisson'`` is the full inverse target variance, which also
+        accounts for the count level: Var = R * E[a] in direction 0 and
+        E[b] / R in direction 1, so w = 1/(R*(a+1)) and R/(b+1). The
+        expectation is estimated from the *input* spectrum, which is
+        independent of the target, so the weights carry no bias. Without
+        this the Pb lines, two orders of magnitude brighter than Ca,
+        take over the gradient and the Ca line is left under-fitted --
+        visible as a collapsed spatial contrast in the fused Ca map.
     """
 
     def __init__(
@@ -292,6 +300,9 @@ class XRFCrossDetectorDataset(Dataset):
             return x, y
         if curve is None:
             w = np.ones_like(a)
+        elif self.return_weight == "poisson":
+            w = (1.0 / (curve * (a + 1.0)) if direction == 0
+                 else curve / (b + 1.0))
         else:
             w = (1.0 / curve) if direction == 0 else curve
         return x, y, torch.from_numpy(w.astype(np.float32)).unsqueeze(0)

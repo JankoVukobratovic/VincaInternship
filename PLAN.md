@@ -302,17 +302,50 @@ laptop/MPS ~5 min). Dve stvari su bile presudne i obe slede iz R(E):
    kanalu, ne prosta sredina (na Ca to je 85:15, isto što klasična
    fuzija nezavisno nalazi kao w = 0.89).
 
-Rezultat na pikselima koje mreža nije videla (prova1 val blokovi):
-srednji dobitak nad prostim zbirom **+5.4%** (naučena) naspram +0.9%
-(inverzno-varijansno ponderisanje); 6 od 8 linija pozitivno — Pb Ll
-+28.8%, Pb Lγ +11.5%, Fe +11.0%, Pb Lβ +8.6%, Ca +5.3%, Cu +5.1%;
-Ti −22.6% i Pb Lα −4.5%. Na svim pikselima +6.1%.
+**Finalni rezultat** (`fusion_weighted.txt`, held-out pikseli): srednji
+dobitak nad prostim zbirom **+17.7%**, naspram +0.9% za klasično
+ponderisanje. Šest od osam linija pozitivno: Pb Ll +68.6%, Pb Lγ +33.3%,
+Fe +28.5%, Cu +17.1%, Pb Lβ +6.7%, Pb Lα +0.6%; Ca −9.4% i Ti −3.7%
+ostaju negativne. U jedinicama vremena: +17.7% SNR vredi 39% duže
+akvizicije.
 
-Uz SNR kolonu idu i dve kontrolne: `cv_ratio` (prostorni kontrast
-naspram sumirane mape, srednje 0.997 — dakle dobitak nije zamućenje) i
-`r_vs_sum` (≥ 0.98 svuda). Dve ostavke za B: Ti ima cv 1.32 (mreža tu
-pojačava šum) i Ca 0.75 (delimično glačanje), pa su ta dva broja još
-neupotrebljiva za tvrdnju.
+Presudan korak nije bila arhitektura nego **pune inverzno-varijansne
+težine gubitka**: pored R² faktora treba računati i nivo odbroja, jer su
+Pb linije dva reda veličine jače od Ca pa preuzimaju gradijent. Var =
+R·E[a] (smer 0) i E[b]/R (smer 1), a očekivanja se procenjuju iz *ulaza*
+koji je nezavisan od targeta, pa težine ne unose pristrasnost:
+w = 1/(R·(a+1)) i R/(b+1). Prelaz sa 1/R težina na pune podigao je
+rezultat sa +5.4% na +17.7% i popravio Ti sa −22.6% na −3.7%.
+
+**Ablacija** (`fusion_ablation.txt`) — ista mreža, prekidači isključeni:
+
+| težine gubitka | fuzija | srednji dobitak |
+|---|---|---|
+| nema | 1:1 | −0.1% |
+| nema | R:1 | +7.1% |
+| 1/R | 1:1 | +3.8% |
+| 1/R | R:1 | +4.4% / +5.4% (lr 1e-4 / 3e-4) |
+| puna | 1:1 | +14.4% |
+| **puna** | **R:1** | **+17.7%** |
+
+Mreža sama ne pobeđuje zbir (−0.1%). Pobeđuje ga tek sa varijansnom
+strukturom koju propisuje izmereno R(E), a razlika između dve stope
+učenja je manja od razlike između šema težinjenja — dakle nije artefakt
+štimovanja.
+
+Kontrolne kolone `cv_ratio` (srednje 0.967) i `r_vs_sum` (≥ 0.95 svuda)
+pokazuju da dobitak nije zamućenje. One i lociraju dve preostale
+negativne linije: Ca ima cv 0.69 (ostatak skupljanja ka srednjem
+spektru, tamo detektor B skoro ništa ne vidi) i Ti cv 1.16 (mreža dodaje
+varijansu).
+
+Izbor modela: stopa učenja birana po validacionom gubitku **pre** nego
+što je izračunat ijedan benchmark broj, šema težinjenja po argumentu o
+varijansi. Usput nalaz vredan pomena u radu: validaciona MSE — i puna i
+ograničena na prozore linija — **ne rangira modele isto kao SNR mapa**
+(lr 1e-4 pobeđuje po oba validaciona kriterijuma, a gubi na mapama),
+jer MSE nagrađuje skupljanje ka uslovnoj sredini. Zato je `cv_ratio`
+obavezan uz svaki SNR broj.
 
 ### 8.11 B6 — osetljivost na pozicioniranje (2026-08-12)
 
