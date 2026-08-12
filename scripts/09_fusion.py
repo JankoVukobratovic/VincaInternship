@@ -39,9 +39,10 @@ Metrics per element and per variant:
 Subsets: "all_px" is checkerboard B over the whole grid. When the
 network's held-out pixel list is present, every variant is also
 evaluated on "heldout_px" (checkerboard B restricted to the prova1
-validation blocks, which the network never saw); that is the row to
-quote for the learned variant. prova2 is a held-out scan for the
-network in both subsets.
+validation blocks); that is the row to quote for the learned variant.
+Those pixels carry no gradient, though the validation loss on them did
+select the stopping epoch. prova2, the other half of every SNR pair, is
+never seen by the network in either subset.
 
 Input : Resources/aurora-antico1-{prova1,prova2}/{10264,19511}/None_N.mca
         (cubes cached as .npy after the first run)

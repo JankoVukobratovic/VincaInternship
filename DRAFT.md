@@ -81,10 +81,14 @@ compare with the builder-confirmed angle if it arrives.]
 
 The scanner carries two silicon drift detectors, 10264 and 19511, that
 read the same excited pixel simultaneously. Three scans of the same
-canvas are used here: two frontal scans seven days apart (prova1,
-prova2; 120 x 60 pixels) and one scan with the canvas tilted forward
-(ruotato; 80 x 45 pixels), each pixel a 1024-channel spectrum at
-0.0292 keV per channel and 3.0 s dwell. The frontal pair fixes the
+canvas are used here: two frontal scans acquired seven days apart
+(prova1, prova2; 120 x 60 pixels) and one scan with the canvas tilted
+forward (ruotato; 80 x 45 pixels), each pixel a 1024-channel spectrum at
+0.0292 keV per channel and a dwell of 3.004, 3.003 and 3.013 s
+respectively. The seven-day interval is the operator's record (private
+communication); the MCA headers carry a placeholder acquisition
+timestamp and cannot confirm it. That interval matters only as the
+timescale over which the repeatability floor below was accumulated. The frontal pair fixes the
 repeatability of everything reported below; the tilted scan supplies the
 geometry contrast.
 
@@ -121,12 +125,15 @@ none is needed. Training uses prova1 and the tilted scan with spatial
 blocks held out for validation; prova2 is never seen. The loss is
 restricted to 3.5-15.5 keV, outside which R(E) is extrapolation.
 
-On the pixels the network never saw, the learned fusion gains 17.7 % in
-mean SNR over summing, against the 0.9 % of the classical weighting
-(Table X, Fig. Y). Six of the eight lines improve, Pb Ll by 68.6 %, Pb
-Lg by 33.3 % and Fe by 28.5 %; Ca loses 9.4 % and Ti 3.7 %. In counting
-terms a 17.7 % SNR gain is worth 39 % more acquisition time on the same
-canvas.
+On pixels that carried no gradient during training, the learned fusion
+gains 17.7 % in mean SNR over summing, against the 0.9 % of the
+classical weighting (Table X, Fig. Y). Six of the eight lines improve,
+Pb Ll by 68.6 %, Pb Lg by 33.3 % and Fe by 28.5 %; Ca loses 9.4 % and
+Ti 3.7 %. The mean is carried disproportionately by the weakest line:
+the median gain is 11.9 %, and dropping Pb Ll alone takes the mean to
+10.4 %, so the honest summary is a gain of roughly 10-18 % depending on
+how the lines are aggregated. In counting terms even the lower figure
+is worth about 22 % more acquisition time, the upper one 39 %.
 
 Two decisions carry that result, and both are read off the measured
 R(E) rather than tuned. First, the loss weights each channel by the
@@ -144,7 +151,7 @@ learning rates tried is smaller than the gap between weighting schemes.
 Because a network that merely blurs a map also raises this SNR, every
 row carries two guards: the ratio of spatial coefficients of variation
 against the summed map (0.97 on average, so contrast is preserved) and
-the correlation with it (0.95 or better everywhere). The two lines that
+the correlation with it (0.947 at Ca, 0.98 or better elsewhere). The two lines that
 lose are exactly the two where the guards flag structure: Ca sits at
 cv 0.69, the residue of shrinkage toward the mean spectrum where
 detector B contributes almost no counts, and Ti at cv 1.16, where the
@@ -152,20 +159,24 @@ network adds variance instead of removing it.
 
 ## Validation
 
-Three things are held out rather than assumed. Spatially, the network
-never sees the validation blocks, and all fusion numbers above are
-quoted on those pixels. Across scans, prova2 is a test scan for the
-network in every configuration. Across models, the choice between
-learning rates was made on validation loss before any benchmark number
-was computed; the choice between weighting schemes follows the variance
-argument above, not the benchmark.
+The fusion numbers are quoted on the validation blocks of the frontal
+training scan, paired with the same pixels of prova2. Those pixels carry
+no gradient, and prova2 is never seen by the network in any
+configuration; but the validation loss on the same blocks selected the
+stopping epoch, so they are held out from fitting, not from every use.
 
-What this does not establish should be stated plainly: prova1 and prova2
-differ in noise realization, not in content, so the evaluation tests
-generalization across noise on one painting, not across paintings. The
-repeatability floor of the whole pipeline is set by the two frontal
-scans, 0.96 % RMS on the element maps and 0.4 % on the vertical scale of
-the registration.
+Three limitations follow and are better stated than argued away. First,
+prova1 and prova2 differ in noise realization, not in content: the
+evaluation tests generalization across noise on one painting, not across
+paintings. Second, the weighting schemes were chosen on the variance
+argument above and the learning rate on validation loss, but the
+benchmark was recomputed as those configurations were developed, so the
+final figure is a hold-out estimate that development has touched, not a
+blind one; the ablation spread (-0.1 % to +17.7 %) is far larger than
+any plausible selection effect, but the single number should be read
+with that in mind. Third, the repeatability floor of the pipeline is set
+by the two frontal scans, 0.96 % RMS on the element maps and 0.43 % on
+the vertical scale of the registration.
 
 ## Map figures
 
@@ -198,9 +209,12 @@ removed as a common mode; what remains is the differential, element to
 element, which is what pigment identification actually depends on.
 
 Per degree of tilt, the summed maps move by +0.50 % at Ca Ka and
-+0.45 % at Ti Ka, against -0.13 % at Pb Lb and -0.08 % at Pb Lg; Fe, Cu
-and Pb Lg do not clear the 0.12 %/deg repeatability floor set by the
-frontal pair. Between the extremes that is 0.63 percentage points per
++0.45 % at Ti Ka, against -0.13 % at Pb Lb and -0.08 % at Pb Lg. Each
+line is judged against its own repeatability rather than a common band,
+because the frontal pair is far from uniform across lines: Ca and Ti
+clear their own floors (0.22 and 0.19 %/deg) by a factor 2.2-2.5 only,
+the sharp Pb lines clear theirs (0.015-0.018 %/deg) by 5-9, and Fe, Cu
+and Pb Lg do not clear theirs at all. Between the extremes that is 0.63 percentage points per
 degree of mounting error, in the same monotonic energy order as the
 detector-ratio shift, and with the two channels moving in opposite
 directions as the geometric model predicts.

@@ -304,7 +304,9 @@ laptop/MPS ~5 min). Dve stvari su bile presudne i obe slede iz R(E):
 
 **Finalni rezultat** (`fusion_weighted.txt`, held-out pikseli): srednji
 dobitak nad prostim zbirom **+17.7%**, naspram +0.9% za klasično
-ponderisanje. Šest od osam linija pozitivno: Pb Ll +68.6%, Pb Lγ +33.3%,
+ponderisanje. Srednja vrednost je osetljiva na jednu liniju — medijana
+je +11.9%, a bez Pb Ll srednja pada na +10.4%, pa se u radu navodi
+raspon 10–18% zavisno od agregacije. Šest od osam linija pozitivno: Pb Ll +68.6%, Pb Lγ +33.3%,
 Fe +28.5%, Cu +17.1%, Pb Lβ +6.7%, Pb Lα +0.6%; Ca −9.4% i Ti −3.7%
 ostaju negativne. U jedinicama vremena: +17.7% SNR vredi 39% duže
 akvizicije.
@@ -339,9 +341,14 @@ negativne linije: Ca ima cv 0.69 (ostatak skupljanja ka srednjem
 spektru, tamo detektor B skoro ništa ne vidi) i Ti cv 1.16 (mreža dodaje
 varijansu).
 
-Izbor modela: stopa učenja birana po validacionom gubitku **pre** nego
-što je izračunat ijedan benchmark broj, šema težinjenja po argumentu o
-varijansi. Usput nalaz vredan pomena u radu: validaciona MSE — i puna i
+Izbor modela: šema težinjenja po argumentu o varijansi, stopa učenja po
+validacionom gubitku. Pošteno napomenuti: benchmark je preračunavan dok
+su se konfiguracije razvijale, pa finalni broj jeste hold-out procena
+ali ne i slepa — raspon ablacije (−0.1% do +17.7%) je ipak mnogo veći od
+bilo kog uverljivog efekta selekcije. Držani pikseli takođe nisu potpuno
+netaknuti: nemaju gradijent, ali je validacioni gubitak na njima birao
+epohu zaustavljanja; prova2, druga polovina svakog SNR para, mreža nije
+videla nikako. Usput nalaz vredan pomena u radu: validaciona MSE — i puna i
 ograničena na prozore linija — **ne rangira modele isto kao SNR mapa**
 (lr 1e-4 pobeđuje po oba validaciona kriterijuma, a gubi na mapama),
 jer MSE nagrađuje skupljanje ka uslovnoj sredini. Zato je `cv_ratio`

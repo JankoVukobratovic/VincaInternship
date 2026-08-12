@@ -88,8 +88,12 @@ if __name__ == "__main__":
     # fall back to prova1 alone if 10 has not been run yet
     combined = os.path.join("results", "detector_diff",
                             "flatfield_combined.npy")
-    geom = (np.load(combined) if os.path.exists(combined)
-            else need(os.path.join(LOGRATIO_DIR, "median_geometry.npy")))
+    if os.path.exists(combined):
+        geom, geom_src = np.load(combined), "combined (script 10)"
+    else:
+        geom = need(os.path.join(LOGRATIO_DIR, "median_geometry.npy"))
+        geom_src = "prova1 only - run script 10 for the paper's map"
+    print(f"  flat-field source: {geom_src}")
 
     scatter = sum(
         band_map(need(os.path.join(CUBE_DIR, f"prova1_{d}_raw.npy")),
@@ -142,4 +146,5 @@ if __name__ == "__main__":
 
     fig.savefig(OUT, dpi=200)
     print(f"Saved: {OUT}")
-    print(f"  non-uniformity vs scatter artifact: r = {r:.3f}")
+    print(f"  non-uniformity vs scatter artifact: r = {r:.3f}"
+          f"  [{geom_src}]")

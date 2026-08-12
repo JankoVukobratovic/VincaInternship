@@ -23,6 +23,12 @@ summed map, plus the cv ratio that catches a network winning by blurring.
 
 Input : xrf-denoise/data/processed/fused_{scan}[_tag].npy
         (produced by 07_train_cross_detector.py --tag ...)
+
+Only the selected model's checkpoint is committed; the ablation arms
+are not. Reproducing this table therefore means re-running the four
+trainings and the exports listed in PLAN 8.10, about 25 minutes on a
+laptop GPU, and their numbers will differ in the last digit because
+training is not bit-deterministic across devices.
 Output: results/detector_diff/fusion_ablation.csv
         results/detector_diff/fusion_ablation.txt
 
