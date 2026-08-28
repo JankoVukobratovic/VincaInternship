@@ -1,0 +1,65 @@
+WP1 - simulator-uncertainty ensemble UQ: summary
+members: 12 jitter + 12 control; held-out simulated cases: 32; real anchor: ruotato vs prova2
+training: mean best val L1 jitter 0.02371, control 0.01864; mean wall 625 s / member
+
+[1] coverage of |mean - truth| <= z*sigma (mean over lines and cases; Gaussian target in brackets)
+  simulated / footprint
+    band        ensemble        z=0.5       z=1.0       z=1.5       z=2.0       z=3.0
+    ens         jitter      0.307[0.38]   0.520[0.68]   0.659[0.87]   0.753[0.95]   0.866[1.00]
+    ens         control     0.136[0.38]   0.252[0.68]   0.353[0.87]   0.440[0.95]   0.580[1.00]
+    total       jitter      0.379[0.38]   0.635[0.68]   0.787[0.87]   0.876[0.95]   0.957[1.00]
+    total       control     0.268[0.38]   0.488[0.68]   0.656[0.87]   0.774[0.95]   0.906[1.00]
+    total_ref   jitter      0.577[0.38]   0.850[0.68]   0.940[0.87]   0.969[0.95]   0.987[1.00]
+    total_ref   control     0.532[0.38]   0.817[0.68]   0.922[0.87]   0.962[0.95]   0.987[1.00]
+  simulated / hole
+    band        ensemble        z=0.5       z=1.0       z=1.5       z=2.0       z=3.0
+    ens         jitter      0.139[0.38]   0.275[0.68]   0.400[0.87]   0.492[0.95]   0.672[1.00]
+    ens         control     0.176[0.38]   0.323[0.68]   0.468[0.87]   0.601[0.95]   0.774[1.00]
+    total       jitter      0.139[0.38]   0.275[0.68]   0.401[0.87]   0.493[0.95]   0.673[1.00]
+    total       control     0.176[0.38]   0.323[0.68]   0.469[0.87]   0.602[0.95]   0.775[1.00]
+    total_ref   jitter      0.173[0.38]   0.338[0.68]   0.471[0.87]   0.575[0.95]   0.741[1.00]
+    total_ref   control     0.205[0.38]   0.376[0.68]   0.528[0.87]   0.663[0.95]   0.833[1.00]
+  REAL / footprint
+    band        ensemble        z=0.5       z=1.0       z=1.5       z=2.0       z=3.0
+    ens         jitter      0.185[0.38]   0.328[0.68]   0.437[0.87]   0.531[0.95]   0.668[1.00]
+    ens         control     0.081[0.38]   0.150[0.68]   0.210[0.87]   0.264[0.95]   0.359[1.00]
+    total_noref jitter      0.237[0.38]   0.418[0.68]   0.561[0.87]   0.673[0.95]   0.825[1.00]
+    total_noref control     0.159[0.38]   0.303[0.68]   0.422[0.87]   0.524[0.95]   0.682[1.00]
+    total       jitter      0.348[0.38]   0.605[0.68]   0.769[0.87]   0.866[0.95]   0.953[1.00]
+    total       control     0.295[0.38]   0.530[0.68]   0.695[0.87]   0.802[0.95]   0.907[1.00]
+
+[2] spread decomposition (mean over lines and cases; sigma in counts, ratios dimensionless)
+  simulated / footprint: sigma_control 91.4  sigma_jitter 155.4  sigma_sim(=sqrt(vj-vc)) 125.7  sigma_alea 40.8  rms_err(jitter mean) 221.0  rms_err(control mean) 206.5
+    spread ratio jitter/control 2.17  frac of jitter variance from the simulator 0.62
+    error ranking  Spearman(sigma,|err|): jitter 0.359  control 0.334  sim-only 0.193 | total band: jitter 0.365  control 0.343
+    AUSE (0 = oracle): jitter 0.276  control 0.279 | total band: jitter 0.279  control 0.278
+  simulated / hole: sigma_control 408.7  sigma_jitter 320.3  sigma_sim(=sqrt(vj-vc)) 0.0  sigma_alea 13.6  rms_err(jitter mean) 939.4  rms_err(control mean) 900.0
+    spread ratio jitter/control 0.85  frac of jitter variance from the simulator -0.47
+    error ranking  Spearman(sigma,|err|): jitter 0.085  control 0.127  sim-only -0.067 | total band: jitter 0.084  control 0.127
+    AUSE (0 = oracle): jitter 0.470  control 0.460 | total band: jitter 0.471  control 0.461
+  REAL / footprint: sigma_control 45.5  sigma_jitter 158.6  sigma_sim(=sqrt(vj-vc)) 151.9  sigma_alea 54.7  rms_err(jitter mean) 304.9  rms_err(control mean) 320.9
+    spread ratio jitter/control 2.80  frac of jitter variance from the simulator 0.86
+    error ranking  Spearman(sigma,|err|): jitter 0.301  control 0.247  sim-only 0.284 | total band: jitter 0.309  control 0.258
+    AUSE (0 = oracle): jitter 0.334  control 0.380 | total band: jitter 0.330  control 0.389
+  spread ratio jitter/control by angle (sim, footprint): 8deg 2.00  14deg 2.10  20deg 2.24  25deg 2.36
+  sigma_sim by angle (sim, footprint, counts): 8deg 103.5  14deg 114.9  20deg 132.2  25deg 147.7
+  by test simulator (footprint): sharp: rms_err(jitter) 210.1 rms_err(control) 196.0  validated: rms_err(jitter) 231.5 rms_err(control) 216.5
+
+[3] accuracy of the candidates (mean r over lines and cases)
+  simulated / footprint: deterministic 0.8836  control_mean 0.9706  jitter_mean 0.9676  control_single 0.9692  jitter_single 0.9583  mvp_single 0.9638
+  simulated / hole: deterministic 0.1712  control_mean 0.3309  jitter_mean 0.2586  control_single 0.3600  jitter_single 0.1629  mvp_single 0.3341
+  REAL / footprint: deterministic 0.9526  control_mean 0.9496  jitter_mean 0.9527  control_single 0.9505  jitter_single 0.9462  mvp_single 0.9485
+  REAL / footprint |bias %|: deterministic 1.32  control_mean 1.11  jitter_mean 1.36  control_single 1.21  jitter_single 2.13  mvp_single 1.12
+  REAL / footprint cv_ratio: deterministic 0.947  control_mean 0.985  jitter_mean 0.979  control_single 0.982  jitter_single 0.983  mvp_single 0.989
+
+[4] REAL anchor per line, r (SSIM) on the footprint vs prova2
+    line           deterministic            mvp_single          control_mean           jitter_mean
+    Ca          0.9639 (0.908)      0.9573 (0.893)      0.9598 (0.898)      0.9637 (0.906)
+    Ti          0.9158 (0.813)      0.9102 (0.808)      0.9116 (0.809)      0.9163 (0.815)
+    Fe          0.9791 (0.913)      0.9777 (0.911)      0.9769 (0.911)      0.9794 (0.914)
+    Cu          0.9566 (0.894)      0.9499 (0.879)      0.9507 (0.884)      0.9544 (0.892)
+    PbLl        0.9149 (0.730)      0.9137 (0.728)      0.9147 (0.732)      0.9173 (0.735)
+    PbLa        0.9750 (0.925)      0.9717 (0.912)      0.9728 (0.916)      0.9754 (0.922)
+    PbLb        0.9740 (0.919)      0.9704 (0.905)      0.9716 (0.909)      0.9742 (0.916)
+    PbLg        0.9413 (0.821)      0.9374 (0.812)      0.9384 (0.815)      0.9410 (0.821)
+    lines with r >= deterministic: mvp_single 0/8, control_mean 0/8, jitter_mean 5/8
