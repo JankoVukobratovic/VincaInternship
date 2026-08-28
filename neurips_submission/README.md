@@ -16,8 +16,8 @@ where learning pays at all (WP3), everything anchored on a REAL scan.*
 | WP | Owner | Folder | Deliverable |
 |----|-------|--------|-------------|
 | WP1 | Dimitrije | `wp1_uq_ensemble/` | Simulator-uncertainty ensemble UQ: N nets trained on jittered simulators, coverage/calibration analysis. Stretch: uncertainty-guided adaptive scanning. |
-| WP2 | ______ | `wp2_simulator_audit/` | Defect-tolerance curves (train on deliberately broken simulators, measure degradation) + blind diagnostics battery that identifies WHICH component is broken. |
-| WP3 | ______ | `wp3_degradation_benchmark/` | Degradation grid (angle x hole x dose), classical inpainting controls, the "when does ML pay?" regime-map figure. |
+| WP2 | Dimitrije (from Aug 28) | `wp2_simulator_audit/` | Defect-tolerance curves (train on deliberately broken simulators, measure degradation) + blind diagnostics battery that identifies WHICH component is broken. |
+| WP3 | Dimitrije (from Aug 28) | `wp3_degradation_benchmark/` | Degradation grid (angle x hole x dose), classical inpainting controls, the "when does ML pay?" regime-map figure. |
 | infra + paper glue | Claude/Dimitrije | `common/`, `main.py`, `paper/` | Shared simulator knobs, trainer, eval, figures assembly, LaTeX skeleton, checklist, anonymization. |
 
 Each experiment file states its own contract (inputs, outputs, definition
@@ -58,6 +58,76 @@ before the full overnight run.
    table includes the real-scan anchor row; matching-but-not-beating a
    baseline is a negative result and gets reported as such.
 5. `neurips-restore/src/` is FROZEN — bug fixes only with team sign-off.
+
+## WP1 status (Dimitrije, 2026-08-28): IMPLEMENTED, full run in progress
+
+`wp1_uq_ensemble/exp_ensemble_uq.py` is complete: 12 jitter + 12 control
+members, coverage for three uncertainty bands (ensemble spread only /
+spread + propagated measurement noise / + reference-map noise), variance
+decomposition (jitter minus control = the simulator's share), error-ranking
+diagnostics (Spearman, AUSE), accuracy of the ensemble means, the real-scan
+anchor, three figures and `results/wp1_summary.txt`.  The stretch
+`exp_adaptive_scan.py` (uncertainty-guided tile acquisition vs random /
+raster / oracle) is implemented too.
+
+Simulator contract additions (announced here, `--stage verify` still green):
+`SimKnobs.warp_rot_deg` (registration rotation error) and
+`SimKnobs.gain_pct_offset` (per-line additive error on the measured
+tilt response, %).  `config.JITTER` now carries the MEASURED calibration
+uncertainties with the source of every number in the comment block.
+
+Parallel training on a many-core machine (4 shells, ~1 h total, then the
+evaluation picks up the cached members):
+
+    python neurips_submission/wp1_uq_ensemble/exp_ensemble_uq.py --train-only --kind jitter  --members 0-5  --threads 3
+    python neurips_submission/wp1_uq_ensemble/exp_ensemble_uq.py --train-only --kind jitter  --members 6-11 --threads 3
+    python neurips_submission/wp1_uq_ensemble/exp_ensemble_uq.py --train-only --kind control --members 0-5  --threads 3
+    python neurips_submission/wp1_uq_ensemble/exp_ensemble_uq.py --train-only --kind control --members 6-11 --threads 3
+    python neurips_submission/main.py --stage wp1
+
+WP1 CSVs: `wp1_ensemble_members`, `wp1_uq_coverage` (ensemble, band,
+case, region, z, coverage, expected), `wp1_uq_diagnostics` (var_control,
+var_jitter, var_sim, var_alea, spearman_*, ause_*), `wp1_uq_accuracy`
+(shared schema), `wp1_adaptive_scan`.
+
+## WP2 and WP3 status (Dimitrije took both over on 2026-08-28)
+
+WP3 is DONE: `wp3_degradation_benchmark/exp_degradation_grid.py` (180-case
+grid + sharp note + real anchor, 8 candidates incl. the WP1 ensemble mean,
+four classical fills with OpenCV Telea/NS added to `common/classical.py`,
+and a biharmonic+net hybrid), `results/wp3_regime_summary.txt`,
+`figures/wp3_regime_map.png`, paper text `results/wp3_paper_section.md`.
+Headline: the biharmonic fill beats the net inside the hole in 16/16 cells;
+learned candidates beat everything on the footprint; the hybrid wins every
+hole cell by 0.005 to 0.03.
+
+WP2 diagnostics is DONE: `wp2_simulator_audit/exp_diagnostics.py`
+(8-statistic battery, calibration-uncertainty null shared with WP1's
+JITTER, pre-registered rule + a labelled post-hoc gain template),
+`results/wp2_diag_summary.txt`, `figures/wp2_diag_confusion.png`, text in
+`results/wp2_paper_section.md`.  WP2 tolerance
+(`exp_defect_tolerance.py`, 18 rungs cached in `results/wp2_rungs/`,
+nominal band = WP1's 12 control members) runs like WP1 in parallel shells:
+
+    python neurips_submission/wp2_simulator_audit/exp_defect_tolerance.py --list
+    python neurips_submission/wp2_simulator_audit/exp_defect_tolerance.py --train-only --rungs 1-5 --threads 3   # x4 shells
+    python neurips_submission/main.py --stage wp2
+
+Instrument facts for the setup paragraph: `INSTRUMENT.md`.
+
+## WP2 + WP3 + WP4 status (Dimitrije, 2026-08-28): ALL DONE AND RUN
+
+WP2: 18-rung defect-tolerance ladder (results/wp2_tolerance_summary.txt with
+the visibility x damage crosstab) + blind diagnostics with the
+calibration-uncertainty null (results/wp2_diag_summary.txt).  WP3: full
+180-case grid with four classical controls, the hybrid, the regime map and
+the real anchor (results/wp3_regime_summary.txt).  WP4 (new folder
+wp4_closed_loop/): ABC posterior over SimKnobs from the single real scan
+using the WP2 battery as summaries, posterior predictive check, and a
+12-member posterior ensemble (results/wp4_summary.txt).  Paper text drafts
+with every number: results/wp*_paper_section.md.  Figures: wp2_tolerance_
+curves, wp2_diag_confusion, wp3_regime_map, wp4_prior_posterior (+ WP1's
+four).  `--stage verify` green throughout.
 
 ## Outputs
 
