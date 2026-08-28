@@ -1,0 +1,50 @@
+WP4 - closing the loop: ABC posterior over the simulator from one real scan
+[1] ABC: 3000 prior draws; whitened RMS-z distance to the real scan: nominal cubic 2.72, nominal bilinear 8.92
+    knob                         prior           post 2%           post 5%          post 10%
+    noise_k_scale      +1.069 +- 0.359   +1.536 +- 0.345   +1.427 +- 0.351   +1.357 +- 0.389
+    gain_scale         +1.002 +- 0.194   +1.063 +- 0.165   +1.043 +- 0.167   +1.013 +- 0.177
+    angle_bias_deg     -0.004 +- 0.502   +0.018 +- 0.518   +0.065 +- 0.504   +0.050 +- 0.495
+    warp_rot_deg       +0.005 +- 0.298   +0.154 +- 0.129   +0.152 +- 0.173   +0.142 +- 0.196
+    warp_dy            +0.002 +- 0.101   +0.087 +- 0.057   +0.075 +- 0.060   +0.067 +- 0.065
+    warp_dx            +0.005 +- 0.100   -0.012 +- 0.085   -0.012 +- 0.081   -0.011 +- 0.086
+    blur_bilinear      +0.511 +- 0.500   +0.000 +- 0.000   +0.000 +- 0.000   +0.000 +- 0.000
+    gain_off_Ca        +0.024 +- 1.020   +0.497 +- 0.951   +0.355 +- 0.935   +0.292 +- 0.908
+    gain_off_Ti        -0.016 +- 0.992   +0.409 +- 0.887   +0.309 +- 0.901   +0.160 +- 0.924
+    gain_off_Fe        +0.005 +- 1.033   +0.312 +- 0.818   +0.166 +- 0.868   +0.090 +- 0.958
+    gain_off_Cu        +0.022 +- 0.981   -0.051 +- 0.885   +0.123 +- 0.903   +0.099 +- 0.947
+    gain_off_PbLl      +0.030 +- 0.983   +0.041 +- 0.994   +0.045 +- 1.044   +0.019 +- 0.997
+    gain_off_PbLa      +0.002 +- 0.998   +0.113 +- 0.888   +0.142 +- 0.915   +0.027 +- 0.935
+    gain_off_PbLb      -0.008 +- 0.991   +0.085 +- 0.957   -0.002 +- 0.956   +0.035 +- 0.956
+    gain_off_PbLg      -0.005 +- 1.005   -0.232 +- 0.955   -0.087 +- 0.891   -0.041 +- 0.928
+    (blur_bilinear mean = posterior probability of the v1 bilinear sampling; prior 0.5)
+
+[2] posterior predictive check (WP2 rule, post-hoc, verdict 'ok' = indistinguishable from the real scan within calibration uncertainty)
+    nominal    ok 0/1: noise_k
+    prior      ok 0/12: blur, warp_rot, warp_shift, blur, gain_like, noise_k, warp_shift, warp_shift, blur, warp_rot, gain_like, warp_shift
+    posterior  ok 0/12: noise_k, noise_k, noise_k, noise_k, noise_k, noise_k, noise_k, noise_k, noise_k, noise_k, noise_k, noise_k
+
+[3] three ensembles on the REAL scan (footprint, mean over lines)
+    ensemble         r     cv  |bias|  spread   alea    err  cov z=1  cov z=2  cov z=3  Spear
+    control     0.9496  0.985    1.11    33.4   47.5  239.3    0.530    0.802    0.907  0.255
+    prior       0.9527  0.979    1.36   106.0   45.7  228.3    0.605    0.866    0.953  0.309
+    posterior   0.9539  0.982    1.07    77.4   46.0  223.0    0.590    0.854    0.942  0.300
+    det         0.9526  0.947    mvp_single r 0.9485
+    per line r (det / control / prior / posterior):
+      Ca    0.9639  0.9598  0.9637  0.9645
+      Ti    0.9158  0.9116  0.9163  0.9169
+      Fe    0.9791  0.9769  0.9794  0.9793
+      Cu    0.9566  0.9507  0.9544  0.9563
+      PbLl  0.9149  0.9147  0.9173  0.9189
+      PbLa  0.9750  0.9728  0.9754  0.9768
+      PbLb  0.9740  0.9716  0.9742  0.9756
+      PbLg  0.9413  0.9384  0.9410  0.9429
+
+[4] simulated held-out cases (validated emulator, dose 1; mean over lines and cases)
+    footprint
+      control    r 0.9702  spread    66.2  err   181.8  cov z=1/2 0.443/0.721  Spearman 0.376
+      prior      r 0.9680  spread   121.5  err   192.7  cov z=1/2 0.585/0.845  Spearman 0.381
+      posterior  r 0.9682  spread    99.7  err   192.8  cov z=1/2 0.539/0.818  Spearman 0.390
+    hole
+      control    r 0.3695  spread   334.1  err   781.0  cov z=1/2 0.325/0.588  Spearman 0.090
+      prior      r 0.3193  spread   250.5  err   794.1  cov z=1/2 0.266/0.473  Spearman 0.110
+      posterior  r 0.3535  spread   270.5  err   792.3  cov z=1/2 0.277/0.501  Spearman 0.071
