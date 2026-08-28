@@ -53,13 +53,39 @@ def biharmonic_fill(tilted: dict, v_tilt: np.ndarray) -> dict:
 
 
 def opencv_fill(tilted: dict, v_tilt: np.ndarray,
-                method: str = "ns") -> dict:
-    """TODO(WP3): cv2.inpaint with INPAINT_NS / INPAINT_TELEA.
+                method: str = "ns", radius: int = 3) -> dict:
+    """cv2.inpaint control (INPAINT_NS or INPAINT_TELEA).
 
-    Contract: same signature as the fills above; normalize each map to
-    uint8/float32 as cv2 requires and undo the scaling afterwards.
+    Each map is scaled to [0, 1] -> uint8 for cv2 and the scaling is
+    undone afterwards; only the masked (v_tilt < 0.5) pixels change,
+    valid pixels are copied back verbatim so the 8-bit round trip does
+    not touch them.
     """
-    raise NotImplementedError("TODO(WP3): implement cv2.inpaint control")
+    import cv2
+    missing = v_tilt < 0.5
+    if not missing.any():
+        return {el: m.copy() for el, m in tilted.items()}
+    flag = cv2.INPAINT_NS if method == "ns" else cv2.INPAINT_TELEA
+    mask = missing.astype(np.uint8)
+    out = {}
+    for el, m in tilted.items():
+        m = np.asarray(m, dtype=float)
+        lo, hi = float(m[~missing].min()), float(m[~missing].max())
+        scale = max(hi - lo, 1e-9)
+        u8 = np.clip((m - lo) / scale * 255.0, 0, 255).astype(np.uint8)
+        f = (cv2.inpaint(u8, mask, radius, flag).astype(float) / 255.0
+             * scale + lo)
+        f[~missing] = m[~missing]
+        out[el] = f
+    return out
+
+
+def telea_fill(tilted: dict, v_tilt: np.ndarray) -> dict:
+    return opencv_fill(tilted, v_tilt, method="telea")
+
+
+def ns_fill(tilted: dict, v_tilt: np.ndarray) -> dict:
+    return opencv_fill(tilted, v_tilt, method="ns")
 
 
 # name -> fill function; WP3 extends this dict, everything downstream
@@ -67,6 +93,8 @@ def opencv_fill(tilted: dict, v_tilt: np.ndarray,
 CANDIDATES = {
     "nearest": nearest_fill,
     "biharmonic": biharmonic_fill,
+    "telea": telea_fill,
+    "ns": ns_fill,
 }
 
 
