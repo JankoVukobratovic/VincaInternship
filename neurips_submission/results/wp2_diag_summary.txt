@@ -1,0 +1,89 @@
+WP2 - blind simulator diagnostics
+
+=== blind test at 7.7 deg: rule exact 67/114, grouped (gain and angle_bias merged) 67/114; LOO nearest-centroid on the z-vector (grouped) 76/114
+confusion (rows = true family group, cols = rule diagnosis)
+                         ok    noise_k  gain_like       blur warp_shift   warp_rot
+    ok                   22          0          1          0          1          0
+    blur                  0          0          0          5          0          0
+    gain_like            40          0          0          0          0          0
+    noise_k               5         15          0          0          0          0
+    warp_rot              0          0          0          0          0         10
+    warp_shift            0          0          0          0         15          0
+POST-HOC rule (+ gain_proj template): grouped 77/114
+                         ok    noise_k  gain_like       blur warp_shift   warp_rot
+    ok                   22          0          1          0          1          0
+    blur                  0          0          0          5          0          0
+    gain_like            30          0         10          0          0          0
+    noise_k               5         15          0          0          0          0
+    warp_rot              0          0          0          0          0         10
+    warp_shift            0          0          0          0         15          0
+per rung (pre-registered rule over seeds | post-hoc rule):
+    noise_k     k_x0.25          -> noise_k, noise_k, noise_k, noise_k, noise_k  |  noise_k, noise_k, noise_k, noise_k, noise_k
+    noise_k     k_x0.5           -> ok, ok, ok, ok, ok  |  ok, ok, ok, ok, ok
+    noise_k     k_x2.0           -> noise_k, noise_k, noise_k, noise_k, noise_k  |  noise_k, noise_k, noise_k, noise_k, noise_k
+    noise_k     k_x4.0           -> noise_k, noise_k, noise_k, noise_k, noise_k  |  noise_k, noise_k, noise_k, noise_k, noise_k
+    gain        gain_x0.0        -> ok, ok, ok, ok, ok  |  gain_like, gain_like, gain_like, gain_like, gain_like
+    gain        gain_x0.5        -> ok, ok, ok, ok, ok  |  ok, ok, ok, ok, ok
+    gain        gain_x1.5        -> ok, ok, ok, ok, ok  |  ok, ok, ok, ok, ok
+    gain        gain_x2.0        -> ok, ok, ok, ok, ok  |  gain_like, gain_like, gain_like, gain_like, gain_like
+    angle_bias  angle_-5deg      -> ok, ok, ok, ok, ok  |  ok, ok, ok, ok, ok
+    angle_bias  angle_-2deg      -> ok, ok, ok, ok, ok  |  ok, ok, ok, ok, ok
+    angle_bias  angle_+2deg      -> ok, ok, ok, ok, ok  |  ok, ok, ok, ok, ok
+    angle_bias  angle_+5deg      -> ok, ok, ok, ok, ok  |  ok, ok, ok, ok, ok
+    blur        bilinear_v1      -> blur, blur, blur, blur, blur  |  blur, blur, blur, blur, blur
+    warp_shift  shift_0.5px      -> warp_shift, warp_shift, warp_shift, warp_shift, warp_shift  |  warp_shift, warp_shift, warp_shift, warp_shift, warp_shift
+    warp_shift  shift_1.0px      -> warp_shift, warp_shift, warp_shift, warp_shift, warp_shift  |  warp_shift, warp_shift, warp_shift, warp_shift, warp_shift
+    warp_shift  shift_2.0px      -> warp_shift, warp_shift, warp_shift, warp_shift, warp_shift  |  warp_shift, warp_shift, warp_shift, warp_shift, warp_shift
+    warp_rot    rot_1.0deg       -> warp_rot, warp_rot, warp_rot, warp_rot, warp_rot  |  warp_rot, warp_rot, warp_rot, warp_rot, warp_rot
+    warp_rot    rot_2.0deg       -> warp_rot, warp_rot, warp_rot, warp_rot, warp_rot  |  warp_rot, warp_rot, warp_rot, warp_rot, warp_rot
+
+=== blind test at 20 deg: rule exact 68/114, grouped (gain and angle_bias merged) 68/114; LOO nearest-centroid on the z-vector (grouped) 80/114
+confusion (rows = true family group, cols = rule diagnosis)
+                         ok    noise_k  gain_like       blur warp_shift   warp_rot
+    ok                   22          0          1          0          1          0
+    blur                  0          0          0          5          0          0
+    gain_like            40          0          0          0          0          0
+    noise_k               4         16          0          0          0          0
+    warp_rot              0          0          0          0          0         10
+    warp_shift            0          0          0          0         15          0
+POST-HOC rule (+ gain_proj template): grouped 78/114
+                         ok    noise_k  gain_like       blur warp_shift   warp_rot
+    ok                   22          0          1          0          1          0
+    blur                  0          0          0          5          0          0
+    gain_like            30          0         10          0          0          0
+    noise_k               4         16          0          0          0          0
+    warp_rot              0          0          0          0          0         10
+    warp_shift            0          0          0          0         15          0
+per rung (pre-registered rule over seeds | post-hoc rule):
+    noise_k     k_x0.25          -> noise_k, noise_k, noise_k, noise_k, noise_k  |  noise_k, noise_k, noise_k, noise_k, noise_k
+    noise_k     k_x0.5           -> ok, ok, noise_k, ok, ok  |  ok, ok, noise_k, ok, ok
+    noise_k     k_x2.0           -> noise_k, noise_k, noise_k, noise_k, noise_k  |  noise_k, noise_k, noise_k, noise_k, noise_k
+    noise_k     k_x4.0           -> noise_k, noise_k, noise_k, noise_k, noise_k  |  noise_k, noise_k, noise_k, noise_k, noise_k
+    gain        gain_x0.0        -> ok, ok, ok, ok, ok  |  gain_like, gain_like, gain_like, gain_like, gain_like
+    gain        gain_x0.5        -> ok, ok, ok, ok, ok  |  ok, ok, ok, ok, ok
+    gain        gain_x1.5        -> ok, ok, ok, ok, ok  |  ok, ok, ok, ok, ok
+    gain        gain_x2.0        -> ok, ok, ok, ok, ok  |  gain_like, gain_like, gain_like, gain_like, gain_like
+    angle_bias  angle_-5deg      -> ok, ok, ok, ok, ok  |  ok, ok, ok, ok, ok
+    angle_bias  angle_-2deg      -> ok, ok, ok, ok, ok  |  ok, ok, ok, ok, ok
+    angle_bias  angle_+2deg      -> ok, ok, ok, ok, ok  |  ok, ok, ok, ok, ok
+    angle_bias  angle_+5deg      -> ok, ok, ok, ok, ok  |  ok, ok, ok, ok, ok
+    blur        bilinear_v1      -> blur, blur, blur, blur, blur  |  blur, blur, blur, blur, blur
+    warp_shift  shift_0.5px      -> warp_shift, warp_shift, warp_shift, warp_shift, warp_shift  |  warp_shift, warp_shift, warp_shift, warp_shift, warp_shift
+    warp_shift  shift_1.0px      -> warp_shift, warp_shift, warp_shift, warp_shift, warp_shift  |  warp_shift, warp_shift, warp_shift, warp_shift, warp_shift
+    warp_shift  shift_2.0px      -> warp_shift, warp_shift, warp_shift, warp_shift, warp_shift  |  warp_shift, warp_shift, warp_shift, warp_shift, warp_shift
+    warp_rot    rot_1.0deg       -> warp_rot, warp_rot, warp_rot, warp_rot, warp_rot  |  warp_rot, warp_rot, warp_rot, warp_rot, warp_rot
+    warp_rot    rot_2.0deg       -> warp_rot, warp_rot, warp_rot, warp_rot, warp_rot  |  warp_rot, warp_rot, warp_rot, warp_rot, warp_rot
+
+REAL scan (ruotato) vs its simulation from prova1 at 7.7 deg; null = sim(prova2) vs sim(prova1) pairs (contains the session difference)
+  simulator v2_cubic           diagnosis: noise_k
+    level_ratio A=0.92/1.45(z=+0.67, raw 1.000)  cv_ratio A=4.63/1.88*(z=+0.99, raw 0.999)  hf_ratio A=3.02/2.05*(z=+3.02, raw 1.180)  mf_ratio A=1.04/1.50(z=+0.57, raw 0.993)  k_ratio A=3.61/1.84*(z=+3.61, raw 1.193)  shift_dy A=1.64/2.39(z=-1.64, raw -0.026)  shift_dx A=0.57/2.66(z=+0.57, raw 0.017)  rot_deg A=1.27/2.74(z=+1.27, raw 0.273)  gain_proj A=1.64/2.40(z=+1.64, raw 0.029)
+  simulator v1_bilinear        diagnosis: blur
+    level_ratio A=0.94/1.45(z=+0.73, raw 1.000)  cv_ratio A=14.94/1.88*(z=+14.94, raw 1.037)  hf_ratio A=14.46/2.05*(z=+14.46, raw 1.913)  mf_ratio A=5.06/1.50*(z=+5.06, raw 1.093)  k_ratio A=12.62/1.84*(z=+12.62, raw 1.745)  shift_dy A=1.65/2.39(z=-1.65, raw -0.026)  shift_dx A=0.50/2.66(z=+0.50, raw 0.012)  rot_deg A=1.24/2.74(z=+1.24, raw 0.265)  gain_proj A=1.62/2.40(z=+1.62, raw 0.020)
+  simulator validated_forward  diagnosis: blur
+    level_ratio A=0.95/1.45(z=+0.73, raw 1.000)  cv_ratio A=13.71/1.88*(z=+13.68, raw 1.031)  hf_ratio A=10.89/2.05*(z=+10.89, raw 1.662)  mf_ratio A=4.94/1.50*(z=+4.94, raw 1.090)  k_ratio A=7.63/1.84*(z=+7.63, raw 1.419)  shift_dy A=1.64/2.39(z=-1.64, raw -0.025)  shift_dx A=0.49/2.66(z=+0.49, raw 0.011)  rot_deg A=1.23/2.74(z=+1.23, raw 0.263)  gain_proj A=1.64/2.40(z=+1.64, raw 0.029)
+  hf_ratio real/sim per line: 
+    v2_cubic           Ca 1.17  Ti 1.05  Fe 1.25  Cu 1.16  PbLl 1.06  PbLa 1.28  PbLb 1.26  PbLg 1.21
+    v1_bilinear        Ca 1.95  Ti 1.68  Fe 2.09  Cu 1.81  PbLl 1.69  PbLa 2.09  PbLb 2.06  PbLg 1.93
+    validated_forward  Ca 1.83  Ti 1.33  Fe 1.83  Cu 1.66  PbLl 1.21  PbLa 2.00  PbLb 1.94  PbLg 1.50
+
+reading: A = mean over lines of |z|, threshold = null mean + 3 sd; '*' = flagged. gain and angle_bias are degenerate at a single angle (both scale g-1), hence grouped scoring.  gain_proj is a POST-HOC statistic (added after the pre-registered rule scored 0/40 on the gain family: the mean over lines dilutes a level change that sits on the two or three lines with a large tilt response); the real-scan verdict uses the post-hoc rule.
