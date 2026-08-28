@@ -2,3 +2,15 @@ results/**/*.pt
 results/**/*.npy
 results/wp1_ensemble/
 __pycache__/
+results/wp1_ensemble_quick/
+results/**/*.npz
+results/wp2_rungs/
+results/wp2_rungs_quick/
+results/wp4_posterior/
+results/wp4_posterior_quick/
+paper/*.aux
+paper/*.log
+paper/*.out
+paper/b*.log
+paper/build*.log
+paper/checklist_src.tex

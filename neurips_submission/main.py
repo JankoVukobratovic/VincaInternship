@@ -28,12 +28,16 @@ STAGES = {
     "wp2": [("wp2_simulator_audit.exp_defect_tolerance", "WP2 owner"),
             ("wp2_simulator_audit.exp_diagnostics", "WP2 owner")],
     "wp3": [("wp3_degradation_benchmark.exp_degradation_grid", "WP3 owner")],
+    "wp4": [("wp4_closed_loop.exp_simulator_posterior", "Dimitrije")],
 }
 
 EXPECTED_CSVS = {
     "wp1_ensemble_members": "WP1", "wp1_uq_coverage": "WP1",
+    "wp1_uq_diagnostics": "WP1", "wp1_uq_accuracy": "WP1",
+    "wp1_adaptive_scan": "WP1 (stretch)",
     "wp2_defect_tolerance": "WP2", "wp2_diagnostics": "WP2",
     "wp2_diag_confusion": "WP2", "wp3_degradation_grid": "WP3",
+    "wp4_abc_draws": "WP4", "wp4_posterior_coverage": "WP4",
 }
 
 
@@ -181,7 +185,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--stage", required=True,
                     choices=["smoke", "verify", "status", "wp1", "wp2",
-                             "wp3", "figures", "all"])
+                             "wp3", "wp4", "figures", "all"])
     ap.add_argument("--quick", action="store_true")
     args = ap.parse_args()
     if args.stage == "smoke":
@@ -193,7 +197,7 @@ def main():
     elif args.stage == "figures":
         figures()
     elif args.stage == "all":
-        for s in ("wp1", "wp2", "wp3"):
+        for s in ("wp1", "wp2", "wp3", "wp4"):
             run_stage(s, args.quick)
         figures()
         status()

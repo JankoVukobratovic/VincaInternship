@@ -48,12 +48,25 @@ class SimKnobs:
     blur_mode: str = "cubic"          # 'cubic' (v2, matches reality) or
                                       # 'bilinear' (the v1 defect)
     warp_shift_px: tuple = (0.0, 0.0)  # (dy, dx) systematic registration err
+    warp_rot_deg: float = 0.0         # registration rotation error about the
+                                      # footprint centre, deg
+    gain_pct_offset: tuple = (0.0,) * len(ELEMENTS)
+                                      # per-line additive error on the measured
+                                      # tilt_pct_sum, in percent, ELEMENTS order
+    noise_k_line_scale: tuple = (1.0,) * len(ELEMENTS)
+                                      # per-line multiplier on the calibrated k
+                                      # (WP4 round-2 knob: the PPC of round 1
+                                      # showed the residual noise misfit is
+                                      # line-dependent), ELEMENTS order
     fresh_frac: float = dg.FRESH_FRAC
     label: str = "nominal"
 
     def to_meta(self) -> dict:
         d = asdict(self)
         d["warp_shift_px"] = f"{self.warp_shift_px[0]}/{self.warp_shift_px[1]}"
+        d["gain_pct_offset"] = "/".join(f"{v:.4f}" for v in self.gain_pct_offset)
+        d["noise_k_line_scale"] = "/".join(f"{v:.4f}"
+                                           for v in self.noise_k_line_scale)
         return d
 
 
@@ -68,19 +81,34 @@ def forward_perturbed(maps_f: dict, angle_deg: float, rng,
     identity (same coordinates, gains, noise law).
     """
     yf, xf = dg._forward_coords()
+    if knobs.warp_rot_deg:
+        # rotate the sampling pattern about the footprint centre: the
+        # registration's rotation is wrong by warp_rot_deg
+        th = np.deg2rad(knobs.warp_rot_deg)
+        cy, cx = float(yf.mean()), float(xf.mean())
+        y0, x0 = yf - cy, xf - cx
+        yf = cy + np.cos(th) * y0 - np.sin(th) * x0
+        xf = cx + np.sin(th) * y0 + np.cos(th) * x0
     dy, dx = knobs.warp_shift_px
     if dy or dx:
         yf, xf = yf + dy, xf + dx
-    gains = fm.tilt_gains(angle_deg + knobs.angle_bias_deg,
-                          elements=list(maps_f))
+    belief = angle_deg + knobs.angle_bias_deg
+    gains = fm.tilt_gains(belief, elements=list(maps_f))
     ks = fm.calibrate_noise(elements=list(maps_f))
     order = 3 if knobs.blur_mode == "cubic" else 1
     out = {}
     for el, m in maps_f.items():
-        g = 1.0 + knobs.gain_scale * (gains[el] - 1.0)
+        # measured gain + per-line offset on the measured percent response,
+        # both extrapolated linearly in the believed angle, then the
+        # global slope factor
+        off = (knobs.gain_pct_offset[ELEMENTS.index(el)] / 100.0
+               * (belief / fm.REF_ANGLE_DEG))
+        g = 1.0 + knobs.gain_scale * (gains[el] - 1.0 + off)
         T = map_coordinates(np.asarray(m, dtype=float), [yf, xf],
                             order=order, mode="nearest") * g
-        var = (knobs.noise_k_scale * ks[el] * np.clip(T, 0.0, None)
+        var = (knobs.noise_k_scale
+               * knobs.noise_k_line_scale[ELEMENTS.index(el)]
+               * ks[el] * np.clip(T, 0.0, None)
                * (max(1.0 - g, 0.0) + knobs.fresh_frac))
         T = T + rng.normal(size=T.shape) * np.sqrt(var)
         out[el] = np.clip(T, 0.0, None)
@@ -147,11 +175,25 @@ def sample(rng: np.random.Generator, knobs: SimKnobs = NOMINAL,
 
 def jittered(rng: np.random.Generator, spec: dict,
              label: str = "jitter") -> SimKnobs:
-    """Random knobs WITHIN calibration uncertainty (WP1 ensemble draw)."""
-    return SimKnobs(
-        noise_k_scale=float(np.exp(rng.normal(0.0, spec["noise_k_log_sd"]))),
-        gain_scale=float(rng.normal(1.0, spec["gain_scale_sd"])),
-        angle_bias_deg=float(rng.normal(0.0, spec["angle_bias_sd_deg"])),
-        warp_shift_px=(float(rng.normal(0.0, spec["warp_shift_sd_px"])),
-                       float(rng.normal(0.0, spec["warp_shift_sd_px"]))),
-        label=label)
+    """Random knobs WITHIN calibration uncertainty (WP1 ensemble draw).
+
+    The draws happen in a FIXED order so that adding optional knobs to
+    the spec never changes the rng stream of existing specs (the WP1
+    members and the WP2 nulls must stay bit-reproducible): the optional
+    per-line noise draw happens last and ONLY if its sd is set.
+    """
+    nk = float(np.exp(rng.normal(0.0, spec["noise_k_log_sd"])))
+    gs = float(rng.normal(1.0, spec["gain_scale_sd"]))
+    ab = float(rng.normal(0.0, spec["angle_bias_sd_deg"]))
+    ws = (float(rng.normal(0.0, spec["warp_shift_sd_px"])),
+          float(rng.normal(0.0, spec["warp_shift_sd_px"])))
+    wr = float(rng.normal(0.0, spec.get("warp_rot_sd_deg", 0.0)))
+    go = tuple(float(v) for v in rng.normal(
+        0.0, spec.get("gain_pct_offset_sd", 0.0), len(ELEMENTS)))
+    line_sd = spec.get("noise_k_line_log_sd", 0.0)
+    nl = tuple(float(v) for v in np.exp(
+        rng.normal(0.0, line_sd, len(ELEMENTS)))) if line_sd > 0 \
+        else (1.0,) * len(ELEMENTS)
+    return SimKnobs(noise_k_scale=nk, gain_scale=gs, angle_bias_deg=ab,
+                    warp_shift_px=ws, warp_rot_deg=wr, gain_pct_offset=go,
+                    noise_k_line_scale=nl, label=label)
