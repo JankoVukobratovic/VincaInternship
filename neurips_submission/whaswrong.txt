@@ -1,0 +1,64 @@
+whaswrong ili sta mi nije jasno
+!!!!!!!!!              pitanja
+
+zasto ima rd broj svakog reda
+
+The simulator share grows monotonically with tilt, 104 to 148
+counts rms from 8◦
+to 25◦   // rms ?	
+
+
+
+!!!!!!!!!!          kritike
+
+slike previse sitna slova ne moze da se procita (u smislu kad bi neko istampao ovo svako slovo bi bila crna tackica)
+
+mislim da treba na graficima gde poredimo kao "tacnost" da naglasimo da li je dobro da 
+bude sto pozitivnije ili sto negativnije
+
+et al.  idk prvi put vidim ovo cudno sto ima tolko puno
+
+malo je mnogo vajb pricice i sastava iz srpskog, npr:
+
+2 Setup: a measured forward model, and how it burned us  .... mi smo zrtve sta ne kapiram claude sta si izhalucinirao
+
+Figure 2, slika gore levo, pise 10^0 na osi. (??)
+Fig 3, lep izbor boja ali jako se lose vidi (najvise zbog toga sto je toliko sitno). Bolje neke boje koje su u kontrastu
+    zato sto su poluprovidni grafici ali su iste boje samo razlicit alpha. Bolje neke dve boje u kontrastu
+    narandzasti deterministic se uopste ni ne vidi (sem na jednom mestu)
+
+fig 4 lose mesto za legendu fr
+
+ "(2/10 % agree on every direction)" 2/10% 
+
+
+
+\item {\bf Declaration of LLM usage}
+    \item[] Question: Does the paper describe the usage of LLMs if it is an important, original, or non-standard component of the core methods in this research? Note that if the LLM is used only for writing, editing, or formatting purposes and does \emph{not} impact the core methodology, scientific rigor, or originality of the research, declaration is not required.
+    %this research? 
+    \item[] Answer: \answerNA{} % Replace by \answerYes{}, \answerNo{}, or \answerNA{}.
+    \item[] Justification: LLM-based assistants were used for code implementation and text editing under author direction and verification; LLMs are not a component of the methods studied in this paper.
+    \item[] Guidelines:
+    \begin{itemize}
+        \item The answer \answerNA{} means that the core method development in this research does not involve LLMs as any important, original, or non-standard components.
+        \item Please refer to our LLM policy in the NeurIPS handbook for what should or should not be described.
+    \end{itemize}
+
+\end{enumerate}
+
+
+
+
+
+!!!!!!!             sta je claude bez konsteksta kritikovao
+
+nigde se ne spominje da su F1 F2 i T ista slika.
+
+Coverage 0.61/0.87/0.95 against a Gaussian target of 0.68/0.95/0.997 
+means the 3σ tail failure rate is roughly seventeen times nominal. 
+That's systematic under-coverage with heavy tails, not near-calibration. 
+Say so; it's still a good result relative to the control, and the honest version is more defensible.
+
+The blur lesson in Section 2 is the paper's best transferable idea 
+("validated as an emulator is not validated as a training-data generator"). 
+It's currently background. Consider making it a contribution.
