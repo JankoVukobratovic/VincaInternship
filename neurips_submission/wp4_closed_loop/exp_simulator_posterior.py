@@ -540,31 +540,33 @@ def make_figures():
     cov = io_utils.read_rows(_tag("wp4_posterior_coverage"))
     acc = io_utils.read_rows(_tag("wp4_posterior_accuracy"))
     spr = io_utils.read_rows(_tag("wp4_posterior_spread"))
+    # gain_scale and angle_bias_deg marginals are omitted (posterior is
+    # indistinguishable from the prior there; numbers in the summary)
     knobs = [("noise_k_scale", "noise constant (x)"),
-             ("gain_scale", "tilt-gain slope (x)"),
-             ("angle_bias_deg", "angle belief (deg)"),
-             ("warp_rot_deg", "registration rotation (deg)"),
-             ("warp_dy", "registration shift dy (px)"),
+             ("warp_rot_deg", "reg. rotation (deg)"),
+             ("warp_dy", "reg. shift dy (px)"),
              ("blur_bilinear", "P(bilinear sampling)")]
     accepted = [r for r in draws if int(r[f"acc_{int(ACCEPT * 100)}"])]
     have_eval = bool(cov)
-    fig, axes = plt.subplots(2 if have_eval else 1, 6,
-                             figsize=(15, 5.6 if have_eval else 2.8))
+    fig, axes = plt.subplots(2 if have_eval else 1, 4,
+                             figsize=(8.8, 3.3 if have_eval else 2.0))
     axes = np.atleast_2d(axes)
     for j, (key, title) in enumerate(knobs):
         ax = axes[0, j]
         pri = np.array([float(r[key]) for r in draws])
         pos = np.array([float(r[key]) for r in accepted])
         if key == "blur_bilinear":
-            ax.bar([0, 1], [pri.mean(), pos.mean()], color=[LIGHT, NAVY],
+            ax.bar([0, 1], [pri.mean(), pos.mean()], color=[GREY, NAVY],
                    width=0.6)
             ax.set_xticks([0, 1])
             ax.set_xticklabels(["prior", "posterior"])
             ax.set_ylim(0, 1)
         else:
-            bins = np.linspace(min(pri.min(), pos.min()), max(pri.max(), pos.max()), 30)
-            ax.hist(pri, bins=bins, density=True, color=LIGHT, label="prior")
-            ax.hist(pos, bins=bins, density=True, color=NAVY, alpha=0.85,
+            bins = np.linspace(min(pri.min(), pos.min()), max(pri.max(), pos.max()), 26)
+            ax.hist(pri, bins=bins, density=True, color=GREY, alpha=0.55,
+                    label="prior")
+            ax.hist(pos, bins=bins, density=True, histtype="stepfilled",
+                    color=NAVY, alpha=0.6, edgecolor=NAVY, linewidth=1.6,
                     label="posterior")
             ax.set_yticks([])
         ax.set_title(title, fontsize=9)
@@ -573,7 +575,7 @@ def make_figures():
     if have_eval:
         is_real = lambda s: s == "REAL_ruotato"     # noqa: E731
         kinds = ("control", "prior", "posterior")
-        cols = {"control": GREY, "prior": LIGHT, "posterior": NAVY}
+        cols = {"control": GREY, "prior": "#5b76b3", "posterior": NAVY}
         # (a) calibration on the real scan
         ax = axes[1, 0]
         zs = list(config.COVERAGE_Z)
@@ -597,17 +599,23 @@ def make_figures():
             ax.bar(x + (k_ - 1) * 0.27, vals, width=0.27, color=cols[kind])
         ax.set_xticks(x)
         ax.set_xticklabels(ELEMENTS, fontsize=7, rotation=45)
-        ax.set_title("ensemble spread, real scan (counts)", fontsize=9)
+        ax.set_title("spread (counts)", fontsize=9)
         # (c) r per line
         ax = axes[1, 2]
-        for cand, col, mk in (("deterministic", ORANGE, "o"), ("control_mean", GREY, "s"),
-                              ("prior_mean", LIGHT, "^"), ("posterior_mean", NAVY, "D")):
+        for cand, col, mk, lw in (
+                ("deterministic", ORANGE, "o", 2.4),
+                ("control_mean", GREY, "s", 1.1),
+                ("prior_mean", "#5b76b3", "^", 1.1),
+                ("posterior_mean", NAVY, "D", 1.1)):
             vals = [_mean(_f(acc, source=is_real, region="footprint",
                              candidate=cand, element=el), "r") for el in ELEMENTS]
-            ax.plot(x, vals, marker=mk, ms=4, lw=1, color=col, label=cand.replace("_mean", ""))
+            ax.plot(x, vals, marker=mk, ms=4, lw=lw, color=col,
+                    zorder=5 if cand == "deterministic" else 3,
+                    label=cand.replace("_mean", "").replace(
+                        "deterministic", "physics"))
         ax.set_xticks(x)
         ax.set_xticklabels(ELEMENTS, fontsize=7, rotation=45)
-        ax.set_title("r vs F2, real scan", fontsize=9)
+        ax.set_title("r vs F2 (up = better)", fontsize=9)
         ax.legend(frameon=False, fontsize=7)
         ax.grid(alpha=0.25)
         # (d) spread vs coverage summary
@@ -622,8 +630,6 @@ def make_figures():
         ax.set_ylabel("coverage at z = 2")
         ax.legend(frameon=False, fontsize=8)
         ax.grid(alpha=0.25)
-        for j in (4, 5):
-            axes[1, j].axis("off")
     fig.tight_layout()
     out = io_utils.fig_path("wp4_prior_posterior.png")
     fig.savefig(out, dpi=200)

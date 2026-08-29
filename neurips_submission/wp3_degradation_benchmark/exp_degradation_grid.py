@@ -394,10 +394,9 @@ def make_figures():
                                                   for m in maps.values()]))))
     vmax = max(vmax, 0.05)
 
-    fig = plt.figure(figsize=(4.0 * len(doses) + 6.4, 3.6))
-    gs = fig.add_gridspec(1, len(doses) + 2,
-                          width_ratios=[1.0] * len(doses) + [1.15, 1.15],
-                          wspace=0.45)
+    fig = plt.figure(figsize=(7.4, 5.2))
+    gs = fig.add_gridspec(2, 3, height_ratios=[1.0, 1.15], hspace=0.55,
+                          wspace=0.35)
     norm = TwoSlopeNorm(vmin=-vmax, vcenter=0.0, vmax=vmax)
     heat_axes = []
     for k, d in enumerate(doses):
@@ -421,8 +420,9 @@ def make_figures():
         if k == 0:
             ax.set_ylabel("tilt angle (deg)")
         ax.set_title(f"dose {d:g}", fontsize=10)
-    cbar = fig.colorbar(im, ax=heat_axes, fraction=0.025, pad=0.02)
-    cbar.set_label("r(net) minus best non-learned", fontsize=8)
+    cbar = fig.colorbar(im, ax=heat_axes, fraction=0.05, pad=0.02)
+    cbar.set_label("r(net) minus best non-learned\n(red = net wins)",
+                   fontsize=8)
     cbar.ax.tick_params(labelsize=7)
 
     # side panels: r vs hole area at 20 deg, dose 1, hole and footprint
@@ -435,7 +435,7 @@ def make_figures():
              "classical_telea": dict(color=GREY, ls=":", marker="x"),
              "classical_ns": dict(color=GREY, ls="-.", marker="+")}
     for k, region in enumerate(("hole", "footprint")):
-        ax = fig.add_subplot(gs[0, len(doses) + k])
+        ax = fig.add_subplot(gs[1, k])
         for c in cands:
             xs, ys = [], []
             for hole, px in zip(holes, hole_px):
@@ -448,17 +448,57 @@ def make_figures():
             if xs:
                 st = style.get(c, dict(color=GREY, ls="-", marker="."))
                 ax.plot(xs, ys, ms=4, lw=1.4, label=c, **st)
-        ax.set_xlabel("hole area (px)")
-        ax.set_ylabel(f"r vs truth, {region}")
+        ax.set_xlabel("hole area (px)", fontsize=9)
+        if k == 0:
+            ax.set_ylabel("r vs truth (up = better)", fontsize=9)
         ax.set_title(f"{HARSH['angle']:g} deg, dose 1, {region}", fontsize=9)
+        ax.tick_params(labelsize=8)
         ax.grid(alpha=0.25)
         if k == 1:
-            ax.legend(fontsize=6.5, frameon=False, loc="lower left")
+            lax = fig.add_subplot(gs[1, 2])
+            lax.axis("off")
+            h_, l_ = ax.get_legend_handles_labels()
+            l_ = [x.replace("classical_", "") for x in l_]
+            lax.legend(h_, l_, fontsize=8.5, frameon=False,
+                       loc="center left", title="candidates",
+                       title_fontsize=9)
     out = io_utils.fig_path("wp3_regime_map.png")
     fig.savefig(out, dpi=200, bbox_inches="tight")
     fig.savefig(out.replace(".png", ".pdf"), bbox_inches="tight")
     plt.close(fig)
     print("saved:", out)
+
+    # compact heat-only version for the main text (the candidate curves
+    # live in the full figure, shown in the appendix)
+    fig2, haxes = plt.subplots(1, len(doses), figsize=(7.2, 1.8))
+    for k, d in enumerate(doses):
+        ax = haxes[k]
+        M = maps[d]
+        im = ax.imshow(M, cmap="RdBu_r", norm=norm, aspect="auto",
+                       origin="lower")
+        for i in range(len(angles)):
+            for j in range(len(holes)):
+                v = M[i, j]
+                if np.isfinite(v):
+                    ax.text(j, i, f"{v:+.2f}", ha="center", va="center",
+                            fontsize=6.5,
+                            color="white" if abs(v) > 0.6 * vmax else "black")
+        ax.set_xticks(range(len(holes)))
+        ax.set_xticklabels([str(px) for px in hole_px], fontsize=8)
+        ax.set_yticks(range(len(angles)))
+        ax.set_yticklabels([f"{a:g}" for a in angles], fontsize=8)
+        ax.set_xlabel("hole area (px)", fontsize=9)
+        if k == 0:
+            ax.set_ylabel("tilt angle (deg)", fontsize=9)
+        ax.set_title(f"dose {d:g}", fontsize=10)
+    cbar2 = fig2.colorbar(im, ax=list(haxes), fraction=0.05, pad=0.02)
+    cbar2.set_label("r(net) minus best\nnon-learned", fontsize=8)
+    cbar2.ax.tick_params(labelsize=7)
+    out2 = io_utils.fig_path("wp3_regime_heat.png")
+    fig2.savefig(out2, dpi=200, bbox_inches="tight")
+    fig2.savefig(out2.replace(".png", ".pdf"), bbox_inches="tight")
+    plt.close(fig2)
+    print("saved:", out2)
 
 
 if __name__ == "__main__":

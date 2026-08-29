@@ -500,11 +500,16 @@ def make_figures():
     families = [f for f in config.DEFECT_LADDERS if _rows(rows, defect_family=f)]
     seeds = sorted({r["defect"] for r in rows
                     if r["defect_family"] == "nominal_seeds"})
-    panels = [("sim footprint", is_sim, "footprint", "r(net) - r(det)"),
-              ("sim hole", is_sim, "hole", "r(net) - r(det)"),
-              ("real scan", is_real, "footprint", "r(net) - r(det)")]
+    # the sim-hole row is omitted: its 12-seed band spans [-0.03, +0.27]
+    # (initialisation-dominated), so it carries no tolerance signal; the
+    # numbers stay in the summary table
+    panels = [("sim footprint", is_sim, "footprint",
+               "r(net) - r(physics)\n(up = better)"),
+              ("real scan", is_real, "footprint",
+               "r(net) - r(physics)\n(up = better)")]
     fig, axes = plt.subplots(len(panels), len(families),
-                             figsize=(2.6 * len(families), 2.3 * len(panels)),
+                             figsize=(1.45 * len(families),
+                                      1.25 * len(panels)),
                              sharey="row")
     axes = np.atleast_2d(axes)
     for j, fam in enumerate(families):
@@ -535,25 +540,28 @@ def make_figures():
             ax.plot([x0], [ys[list(xs).index(x0)] if x0 in list(xs) else np.nan],
                     marker="s", ms=6, color=ORANGE, ls="none")
             if key in ("noise_k_scale", "gain_scale") and fam == "noise_k":
+                from matplotlib.ticker import NullFormatter, ScalarFormatter
                 ax.set_xscale("log")
+                ax.set_xticks([0.25, 1.0, 4.0])
+                ax.xaxis.set_major_formatter(ScalarFormatter())
+                ax.xaxis.set_minor_formatter(NullFormatter())
             if key == "blur_mode":
                 ax.set_xticks([0, 1])
                 ax.set_xticklabels(["cubic", "bilinear"])
             if i == 0:
-                ax.set_title({"noise_k": "noise constant k (x)",
-                              "gain": "tilt-gain slope (x)",
+                ax.set_title({"noise_k": "noise const. k (x)",
+                              "gain": "gain slope (x)",
                               "angle_bias": "angle belief (deg)",
                               "blur": "resampling blur",
-                              "warp_shift": "registration shift (px)",
-                              "warp_rot": "registration rotation (deg)"
+                              "warp_shift": "reg. shift (px)",
+                              "warp_rot": "reg. rotation (deg)"
                               }.get(fam, fam), fontsize=9)
             if j == 0:
-                ax.set_ylabel(f"{title}\n{ylab}", fontsize=9)
+                ax.set_ylabel(f"{title}\n{ylab}", fontsize=8.5)
             ax.grid(alpha=0.25)
-            ax.tick_params(labelsize=8)
-    fig.suptitle("Defect tolerance: one net per broken training simulator, "
-                 "tested on the nominal emulator and the real scan; grey = "
-                 "range of 12 nominal seeds, orange = nominal", fontsize=9)
+            ax.tick_params(labelsize=7.5)
+    fig.suptitle("One net per broken training simulator; grey band = "
+                 "12 nominal seeds, orange = nominal", fontsize=9)
     fig.tight_layout()
     out = io_utils.fig_path("wp2_tolerance_curves.png")
     fig.savefig(out, dpi=200)

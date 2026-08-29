@@ -562,7 +562,7 @@ def make_figures():
     diags = ["ok", "noise_k", "gain_like", "blur", "warp_shift", "warp_rot"]
     C = np.array([[sum(1 for c in conf if c["group"] == g and c["diagnosis"] == d)
                    for d in diags] for g in groups], float)
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10.5, 0.28 * M.shape[0] + 2.2),
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(8.6, 0.26 * M.shape[0] + 2.0),
                                    gridspec_kw={"width_ratios": [1.2, 1]})
     lim = 6.0
     im = ax1.imshow(np.clip(M, -lim, lim), cmap=cmap, vmin=-lim, vmax=lim,
@@ -571,7 +571,7 @@ def make_figures():
     ax1.set_xticklabels([s.replace("_", "\n") for s in STATS], fontsize=8)
     ax1.set_yticks(range(M.shape[0]))
     ax1.set_yticklabels([f"{f}/{l}" for f, l in rungs]
-                        + [f"REAL vs {t}" for t in real_tags], fontsize=7.5)
+                        + [f"REAL vs {t}" for t in real_tags], fontsize=8)
     ax1.axhline(len(rungs) - 0.5, color="k", lw=0.8)
     ax1.set_title("signature: mean z per statistic, both angles (clipped at +-6)",
                   fontsize=9)

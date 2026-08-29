@@ -750,7 +750,7 @@ def make_figures():
     panels = [("simulated, footprint", is_sim, "footprint"),
               ("simulated, hole", is_sim, "hole"),
               ("real scan, footprint", is_real, "footprint")]
-    fig, axes = plt.subplots(1, 3, figsize=(10.5, 3.4), sharey=True)
+    fig, axes = plt.subplots(1, 3, figsize=(7.4, 2.15), sharey=True)
     style = {("jitter", "ens"): dict(color=NAVY, ls=":", marker="o"),
              ("jitter", "total"): dict(color=NAVY, ls="-", marker="o"),
              ("jitter", "total_ref"): dict(color=NAVY, ls="--", marker="o"),
@@ -781,13 +781,14 @@ def make_figures():
             ax.errorbar(xg, ys, yerr=es, label=lab, ms=4, lw=1.4,
                         capsize=2, **st)
         ax.set_title(title, fontsize=10)
-        ax.set_xlabel("nominal Gaussian coverage")
+        ax.set_xlabel("nominal Gaussian coverage", fontsize=9)
         ax.set_xlim(0.3, 1.0)
         ax.set_ylim(0.0, 1.0)
+        ax.tick_params(labelsize=8)
         ax.grid(alpha=0.25)
-    axes[0].set_ylabel("empirical coverage")
+    axes[0].set_ylabel("empirical coverage", fontsize=9)
     h, l = axes[0].get_legend_handles_labels()
-    axes[1].legend(h, l, fontsize=7.5, loc="upper left", frameon=False)
+    axes[1].legend(h, l, fontsize=8, loc="upper left", frameon=False)
     fig.tight_layout()
     out = io_utils.fig_path("wp1_calibration.png")
     fig.savefig(out, dpi=200)
@@ -817,7 +818,7 @@ def make_figures():
         cols_t = ["truth", "ensemble mean", "|error|", "spread, control",
                   "spread, jitter", "simulator part"]
         fig, axes = plt.subplots(len(lines), len(cols_t),
-                                 figsize=(2.1 * len(cols_t), 1.25 * len(lines) + 0.5))
+                                 figsize=(1.55 * len(cols_t), 0.95 * len(lines) + 0.45))
         axes = np.atleast_2d(axes)
         for i, el in enumerate(lines):
             k = els.index(el)
@@ -847,7 +848,7 @@ def make_figures():
                     ax.set_ylabel(el, fontsize=10)
         fig.suptitle(f"{tag.replace('_', ' ')}: white outline = dropout hole;"
                      " spread panels share one colour scale per line",
-                     fontsize=8)
+                     fontsize=9)
         fig.tight_layout()
         out = io_utils.fig_path("wp1_spread_maps.png")
         fig.savefig(out, dpi=200)
@@ -878,7 +879,7 @@ def make_figures():
                 pooled[(kind, "total")][0].append(s_tot)
                 pooled[(kind, "total")][1].append(err)
     if n_cases:
-        fig, axes = plt.subplots(1, 2, figsize=(7.2, 3.3), sharey=True)
+        fig, axes = plt.subplots(1, 2, figsize=(6.2, 2.8), sharey=True)
         for ax, band in zip(axes, ("ens", "total")):
             lim = 0.0
             for kind in KINDS:
@@ -900,9 +901,12 @@ def make_figures():
             ax.plot([0, lim], [0, lim], color="k", lw=0.8, alpha=0.5)
             ax.set_title("spread only" if band == "ens" else "spread + noise",
                          fontsize=10)
-            ax.set_xlabel("predicted sigma (units of the line's std)")
+            ax.set_xlabel("predicted sigma (units of the line's std)",
+                          fontsize=9)
+            ax.tick_params(labelsize=8)
             ax.grid(alpha=0.25)
-        axes[0].set_ylabel("RMS error in the bin")
+        axes[0].set_ylabel("RMS error in the bin (down = better)",
+                           fontsize=9)
         axes[0].legend(frameon=False, fontsize=9)
         fig.tight_layout()
         out = io_utils.fig_path("wp1_error_vs_sigma.png")
