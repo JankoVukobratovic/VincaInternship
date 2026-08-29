@@ -240,6 +240,27 @@ C. Paper: DONE (~14:30). paper/main.tex + filled checklist.tex compiled to
    adaptive scan = one outlook paragraph.
 D. Checklist, anonymization, reviewer nomination (mentor), commit, submit.
 
+## 5. REVIEW ROUND (2026-08-28, from neurips_submission/whaswrong.txt)
+Dimitrije reviewed the paper; all points addressed and pushed:
+- ALL figures regenerated with print-sized canvases (fonts readable at
+  linewidth); WP4 got contrasting grey-vs-navy marginals + visible orange
+  physics curve; WP3 legend moved outside; WP2 tolerance shows 2 rows
+  (hole row dropped, seed-dominated); log axis now plain numbers;
+  "(up = better)" on accuracy axes; main text uses compact
+  wp3_regime_heat, full wp3_regime_map in the appendix.
+- Text: numeric citations (PassOptionsToPackage numbers), Sec 2 title
+  sobered, F1/F2/T stated to be the SAME painting, coverage honesty
+  (3-sigma tail failure 0.047 vs 0.003 stated, "near-calibrated" removed),
+  blur lesson promoted to contribution No. 1, "2/10%" rephrased, rms
+  explained, tone sweep. Line numbers = submission mode (gone in final).
+- PITFALL FOUND: an earlier heredoc script had rfind()==-1 and silently
+  DUPLICATED main.tex (LaTeX ignored the second copy after end{document});
+  truncated back to one copy. Bash-heredoc python with backslashes is
+  UNRELIABLE here (wrapper eats double backslashes: \b -> backspace);
+  always use Write-a-script-file or the Edit tool for such patches.
+- Main text ends EXACTLY on page 5; References from page 6; 16 pages
+  total; verify green; no em dashes.
+
 ## 4. Commands and pitfalls
 - Full WP1 rerun is NOT needed (cached members + CSVs). `--quick` runs use
   separate member dirs (wp1_ensemble_quick, wp2_rungs_quick) - never mix.
