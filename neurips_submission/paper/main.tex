@@ -204,35 +204,35 @@ S.~van~der Walt, J.~L. Sch{\"o}nberger, J.~Nunez-Iglesias, F.~Boulogne, J.~D. Wa
 \section{Additional figures}
 \label{app:figures}
 
-\begin{figure}[h]
+\begin{figure}[tp]
   \centering
   \includegraphics[width=\linewidth]{wp1_spread_maps.pdf}
   \caption{Spread maps on the harsh case (20$^\circ$, $14\times20$ hole, white outline), three lines. Columns: reference, jitter-ensemble mean, absolute error, control spread, jitter spread, and the simulator part $\sqrt{\max(\sigma_{\mathrm{jitter}}^2-\sigma_{\mathrm{control}}^2,0)}$; the three spread panels of a line share one colour scale. The control spread lives in the hole; the jitter spread follows the painting's structure; inside the hole the jitter ensemble is narrower than the control (dark).}
   \label{fig:spreadmaps}
 \end{figure}
 
-\begin{figure}[h]
+\begin{figure}[tp]
   \centering
   \includegraphics[width=0.8\linewidth]{wp1_error_vs_sigma.pdf}
   \caption{Binned reliability: RMS error against predicted $\sigma$ in twelve $\sigma$-quantile bins, pooled over simulated cases and lines in units of each line's standard deviation; diagonal = calibrated. Left: ensemble spread only; right: spread plus propagated noise.}
   \label{fig:reliability}
 \end{figure}
 
-\begin{figure}[h]
+\begin{figure}[tp]
   \centering
   \includegraphics[width=\linewidth]{wp2_diag_confusion.pdf}
   \caption{Blind diagnostics. Left: signature of every defect rung, the mean $z$ of each statistic against the calibration-uncertainty null (both test angles pooled, clipped at $\pm6$); the bottom block is the real scan against three simulators (v2 cubic, v1 bilinear, validated bilinear emulator). Right: identification counts of the pre-registered rule, true family (grouped) versus diagnosis.}
   \label{fig:confusion}
 \end{figure}
 
-\begin{figure}[h]
+\begin{figure}[tp]
   \centering
   \includegraphics[width=\linewidth]{wp3_regime_map.pdf}
   \caption{The full regime map: the heat maps of Fig.~\ref{fig:regime} together with $r$ against hole area at 20$^\circ$, dose 1, for every candidate, inside the hole and on the footprint (physics orange, learned navy, classical grey, hybrid navy triangles).}
   \label{fig:regimefull}
 \end{figure}
 
-\begin{figure}[h]
+\begin{figure}[tp]
   \centering
   \includegraphics[width=\linewidth]{wp1_adaptive.pdf}
   \caption{Uncertainty-guided acquisition pilot: $r$ against the measured fraction of the tilted frame when $5\times5$ tiles are acquired in the order of the jitter-ensemble spread (adaptive), at random, in raster order, or by the true error (oracle, not realisable); 8 tiles per step from a 25\,\% start, mean of three simulated cases. Adaptive reaches $r\ge0.90$ (mean over Ca, Cu, Pb\,L$\alpha$) after measuring 79\,\% of the frame, against 85\,\% for random or raster order and 72\,\% for the oracle; for $r\ge0.95$ the fractions are 88\,\%, 93\,\% and 82\,\%.}

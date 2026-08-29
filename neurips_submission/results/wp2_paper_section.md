@@ -1,3 +1,5 @@
+> NOTE (2026-08-28): working draft. The submitted text is paper/main.tex; where wording differs (e.g. the coverage claim is stated as under-coverage with heavy tails, not near-calibration), the paper is authoritative. Numbers here match the summary files.
+
 # WP2 results text for the paper (draft; diagnostics numbers final from results/wp2_diag_summary.txt, run of 2026-08-28; tolerance part to be filled from results/wp2_tolerance_summary.txt)
 
 ## Method paragraph: blind simulator diagnostics

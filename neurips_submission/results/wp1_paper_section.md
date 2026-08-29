@@ -1,3 +1,5 @@
+> NOTE (2026-08-28): working draft. The submitted text is paper/main.tex; where wording differs (e.g. the coverage claim is stated as under-coverage with heavy tails, not near-calibration), the paper is authoritative. Numbers here match the summary files.
+
 # WP1 results text for the paper (draft, numbers from results/wp1_summary.txt and results/wp1_adaptive_summary.txt, run of 2026-08-28)
 
 All numbers below are means over the 8 element lines and, for the simulated cases, over the 32 held-out cases (angle 8/14/20/25 deg x hole none/14x20 x test simulator validated/sharp x dose 1.0/0.5, all from prova2, never in training). The real anchor is the measured tilted scan (ruotato, 7.7 deg) restored and scored against prova2. 12 + 12 members, ~10 min each on CPU, 469k parameters each.

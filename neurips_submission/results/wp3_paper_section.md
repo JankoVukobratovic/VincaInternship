@@ -1,3 +1,5 @@
+> NOTE (2026-08-28): working draft. The submitted text is paper/main.tex; where wording differs (e.g. the coverage claim is stated as under-coverage with heavy tails, not near-calibration), the paper is authoritative. Numbers here match the summary files.
+
 # WP3 results text for the paper (numbers from results/wp3_regime_summary.txt, run of 2026-08-28)
 
 Grid: 4 angles (8, 14, 20, 25 deg) x 5 holes (none, 6x8, 10x14, 14x20, 18x26 px in the tilted frame) x 3 doses (1, 0.5, 0.25) x 3 noise seeds = 180 cases, source prova2 (never trained on), validated emulator. Candidates: physics inverse (det), the nominal single net (MVP), the WP1 jitter-ensemble mean, four classical fills applied in the tilted frame before the same physics inverse (nearest, biharmonic, OpenCV Telea, OpenCV Navier-Stokes), and one hybrid (biharmonic fill, then the net with the hole declared valid). Scores are r against prova2, mean over seeds and the 8 lines, inside the hole and on the footprint.

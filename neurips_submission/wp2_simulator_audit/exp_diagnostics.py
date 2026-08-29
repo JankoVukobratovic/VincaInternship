@@ -591,7 +591,7 @@ def make_figures():
     ax2.set_yticklabels(groups, fontsize=8)
     ax2.set_xlabel("rule diagnosis")
     ax2.set_ylabel("true family (grouped)")
-    ax2.set_title("blind identification, pre-registered rule, both angles", fontsize=9)
+    ax2.set_title("pre-registered rule, both angles", fontsize=9)
     fig.tight_layout()
     out = io_utils.fig_path("wp2_diag_confusion.png")
     fig.savefig(out, dpi=200)
