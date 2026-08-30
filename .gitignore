@@ -27,6 +27,21 @@
 # Archives
 *.zip
 
+# LaTeX build junk (poster and other ad hoc builds; sources and final
+# PDFs/PPTX are committed, the compiler byproducts are not)
+*.aux
+*.log
+*.fls
+*.fdb_latexmk
+*.synctex.gz
+*.out
+
+# Local scratch copies that are not deliverables: a superseded slide-deck
+# backup and Word-format submission-portal tests duplicating ICETRAN.pdf
+presentation/dual_detector_talk_icetran_style_og.pptx
+submission_test_Maja_Gor - Copy.docx
+submission_test_Maja_Gor - Corrected.docx
+
 # OS / IDE junk
 .DS_Store
 .idea/
