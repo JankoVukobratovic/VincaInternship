@@ -135,12 +135,12 @@ if __name__ == "__main__":
         # smooth geometric component, median geometry map
         plot_grid(
             {el: logratios[el] - np.nanmean(logratios[el]) for el in ELEMENTS},
-            f"log(D1/D2) per element, mean removed — {scan}",
+            f"log(D1/D2) per element, mean removed - {scan}",
             os.path.join(out_dir, "logratio_grid.png"),
         )
         plot_grid(
             {el: smooths[el] - np.nanmean(smooths[el]) for el in ELEMENTS},
-            f"Smooth component (geometric non-uniformity) — {scan}, σ={sigma:.0f} px",
+            f"Smooth component (geometric non-uniformity) - {scan}, σ={sigma:.0f} px",
             os.path.join(out_dir, "smooth_grid.png"),
         )
         fig, ax = plt.subplots(figsize=(8, 8 * height / width + 0.8),

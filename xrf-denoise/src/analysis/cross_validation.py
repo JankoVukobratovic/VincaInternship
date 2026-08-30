@@ -40,12 +40,12 @@ def cross_detector_validation(
 
     Parameters
     ----------
-    denoised_a : np.ndarray, shape (H, W, C) — denoised detector A
-    raw_a : np.ndarray — raw detector A
-    raw_b : np.ndarray — raw detector B (independent witness)
-    elements : dict — {name: {'kev': float}}
+    denoised_a : np.ndarray, shape (H, W, C) - denoised detector A
+    raw_a : np.ndarray - raw detector A
+    raw_b : np.ndarray - raw detector B (independent witness)
+    elements : dict - {name: {'kev': float}}
     cal_slope, cal_intercept : float
-    denoised_b : np.ndarray or None — denoised detector B (for negative control)
+    denoised_b : np.ndarray or None - denoised detector B (for negative control)
 
     Returns
     -------

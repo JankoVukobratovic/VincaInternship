@@ -99,7 +99,7 @@ if __name__ == "__main__":
         render_display_grid(
             diff, disp_keys, elements, width, height,
             save_path=os.path.join(out_dir, "diff_grid.png"),
-            title=f"Detector difference — {scan}:  {d1} − {d2}\n"
+            title=f"Detector difference - {scan}:  {d1} − {d2}\n"
                   f"RED = more in {d1}  |  BLUE = more in {d2}",
             is_diff=True,
         )

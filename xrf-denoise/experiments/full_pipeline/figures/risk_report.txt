@@ -6,7 +6,7 @@
 METHODOLOGY:
   1. UNet1D denoising (self-supervised Poisson splitting)
   2. NMF blind spectral decomposition
-  3. Chemical Vulnerability Index (CVI) — 5 degradation rules
+  3. Chemical Vulnerability Index (CVI) - 5 degradation rules
 
 STATISTICS:
   Grid: 60x120 = 7200 pixels

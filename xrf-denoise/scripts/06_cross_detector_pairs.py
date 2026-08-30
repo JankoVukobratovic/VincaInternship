@@ -3,9 +3,9 @@ Phase B (dual-detector paper): build and smoke-test the cross-detector
 Noise2Noise pairs (PLAN §4.3 + amendment 8.4).
 
 Loads full spectral cubes for prova1, prova2 and the tilted ruotato
-scan (both detectors each), assembles the per-scan split — training on
+scan (both detectors each), assembles the per-scan split - training on
 prova1 + ruotato with spatial-block validation, external evaluation on
-prova2 — loads the R(E) target-scaling curves (handoff 2 if present,
+prova2 - loads the R(E) target-scaling curves (handoff 2 if present,
 otherwise the provisional per-element table), and sanity-checks batches
 through UNet1D.
 
@@ -130,7 +130,7 @@ if __name__ == "__main__":
           f"-{cfg.cal_intercept + (n_ch - 1) * cfg.cal_slope:.1f} keV axis, "
           f"window 3.5-15.5 keV)")
 
-    # global scale: keep inputs O(1) — 99.9th percentile of train counts
+    # global scale: keep inputs O(1) - 99.9th percentile of train counts
     sample = splits["train"][0][1][::37].ravel()
     global_scale = float(np.percentile(sample, 99.9)) or 1.0
     print(f"global scale (p99.9 of train counts): {global_scale:.1f}")

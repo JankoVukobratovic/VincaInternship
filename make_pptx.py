@@ -131,7 +131,7 @@ def colored_label(slide, left, top, w, h, text, bg_c, font_size=13, text_color=C
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# SLIDE 1 — TITLE
+# SLIDE 1 - TITLE
 # ═══════════════════════════════════════════════════════════════════════════════
 s = prs.slides.add_slide(blank_layout)
 bg(s)
@@ -167,21 +167,21 @@ box(s, 0.5, 7.1, 12.3, 0.3, "Science Conference 2026", font_size=12, color=C_LGR
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# SLIDE 2 — MOTIVATION
+# SLIDE 2 - MOTIVATION
 # ═══════════════════════════════════════════════════════════════════════════════
 s = prs.slides.add_slide(blank_layout)
 bg(s)
 title_bar(s, "Motivation", "Why automate conservation risk assessment?")
 
-# Left column — problem
+# Left column - problem
 box(s, 0.3, 1.3, 4.2, 0.4, "THE PROBLEM", font_size=13, bold=True, color=C_ACCENT)
 bullet_block(s, 0.3, 1.72, 4.3, 4.5, [
-    "Historical paintings degrade silently — damage often invisible until irreversible",
+    "Historical paintings degrade silently - damage often invisible until irreversible",
     "Pigments interact chemically: Cu greens corrode, Pb whites turn black, Fe catalyzes oxidation",
     "Traditional assessment: expert-driven, qualitative, does not scale to full surfaces",
 ], font_size=16)
 
-# Center column — XRF
+# Center column - XRF
 box(s, 4.9, 1.3, 4.0, 0.4, "XRF MACRO-SCANNING", font_size=13, bold=True, color=C_ACCENT)
 bullet_block(s, 4.9, 1.72, 4.0, 4.5, [
     "Per-pixel elemental maps across entire painting surface",
@@ -190,7 +190,7 @@ bullet_block(s, 4.9, 1.72, 4.0, 4.5, [
     "Problem: interpreting 7,200 spectra manually is impractical",
 ], font_size=16)
 
-# Right column — our answer
+# Right column - our answer
 box(s, 9.2, 1.3, 3.8, 0.4, "OUR ANSWER", font_size=13, bold=True, color=C_GOLD)
 bullet_block(s, 9.2, 1.72, 3.9, 4.5, [
     "Fully automated pipeline",
@@ -211,7 +211,7 @@ box(s, 0.3, 7.15, 12.8, 0.3,
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# SLIDE 3 — PIPELINE OVERVIEW
+# SLIDE 3 - PIPELINE OVERVIEW
 # ═══════════════════════════════════════════════════════════════════════════════
 s = prs.slides.add_slide(blank_layout)
 bg(s)
@@ -265,7 +265,7 @@ for i, (stage_n, t) in enumerate(runtime):
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# SLIDE 4 — SPECTRAL ANALYSIS
+# SLIDE 4 - SPECTRAL ANALYSIS
 # ═══════════════════════════════════════════════════════════════════════════════
 s = prs.slides.add_slide(blank_layout)
 bg(s)
@@ -285,7 +285,7 @@ bullet_block(s, 0.3, 4.4, 5.5, 2.6, [
     "5-point linear calibration: E = 0.0292·c − 0.069 keV  (R² > 0.9999)",
     "ROI integration + linear background from off-peak sidebands",
     "Spectral overlap corrections (Cu Kβ→Zn, Pb/As regression)",
-    "As/Pb Lα overlap at ΔE = 0.007 keV — below detector FWHM",
+    "As/Pb Lα overlap at ΔE = 0.007 keV - below detector FWHM",
 ], font_size=14)
 
 # RIGHT: element maps image
@@ -295,12 +295,12 @@ if os.path.exists(IMG_ELEMENTS):
 # NMF footer
 divider(s, 6.8, C_DARKBOX)
 box(s, 0.3, 6.87, 12.7, 0.35,
-    "NMF (K=5) independently recovers the same 5 material groups — Pb, Ca/Fe, Cu, Ti, Compton — reconstruction error <5%   →   cross-validates physics-based extraction",
+    "NMF (K=5) independently recovers the same 5 material groups - Pb, Ca/Fe, Cu, Ti, Compton - reconstruction error <5%   →   cross-validates physics-based extraction",
     font_size=13, color=C_LGRAY, align=PP_ALIGN.CENTER)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# SLIDE 5 — CVI
+# SLIDE 5 - CVI
 # ═══════════════════════════════════════════════════════════════════════════════
 s = prs.slides.add_slide(blank_layout)
 bg(s)
@@ -367,7 +367,7 @@ box(s, 0.3, 6.82, 12.7, 0.35,
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# SLIDE 6 — RESULTS
+# SLIDE 6 - RESULTS
 # ═══════════════════════════════════════════════════════════════════════════════
 s = prs.slides.add_slide(blank_layout)
 bg(s)
@@ -449,7 +449,7 @@ if os.path.exists(IMG_SAM):
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# SLIDE 7 — FURTHER WORK
+# SLIDE 7 - FURTHER WORK
 # ═══════════════════════════════════════════════════════════════════════════════
 s = prs.slides.add_slide(blank_layout)
 bg(s)
@@ -469,7 +469,7 @@ bullet_block(s, 0.3, 1.65, 5.8, 3.5, [
 divider(s, 5.3, C_DARKBOX, width=5.8, left=0.3)
 box(s, 0.3, 5.38, 5.8, 0.38, "PRINCIPAL LIMITATION", font_size=13, bold=True, color=C_ORANGE)
 box(s, 0.3, 5.78, 5.8, 0.65,
-    "All validation is internal consistency on one mockup canvas — ground-truth comparison against conservator assessments on real paintings with documented degradation outcomes is required.",
+    "All validation is internal consistency on one mockup canvas - ground-truth comparison against conservator assessments on real paintings with documented degradation outcomes is required.",
     font_size=14, color=C_LGRAY)
 
 # Further work column
@@ -477,10 +477,10 @@ box(s, 7.0, 1.25, 5.9, 0.38, "NEXT STEPS", font_size=13, bold=True, color=C_ACCE
 
 steps = [
     (C_RED,    "Validate CVI against expert conservator assessments on real paintings with known degradation outcomes"),
-    (C_ORANGE, "Integrate NMF abundance maps as CVI inputs — capture material mixtures invisible to single-element thresholds"),
+    (C_ORANGE, "Integrate NMF abundance maps as CVI inputs - capture material mixtures invisible to single-element thresholds"),
     (C_ACCENT, "Extend to paintings with different conservation histories; adapt rule weights as needed"),
     (C_ACCENT, "Resolve As/Pb Lα overlap (ΔE=0.007 keV) with higher-resolution detectors or deconvolution"),
-    (RGBColor(0x8B,0xC3,0x4A), "Build conservator-facing GUI/API — no Python expertise required"),
+    (RGBColor(0x8B,0xC3,0x4A), "Build conservator-facing GUI/API - no Python expertise required"),
 ]
 for i, (col4, txt) in enumerate(steps):
     sy2 = 1.75 + i * 1.05

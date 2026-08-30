@@ -7,7 +7,7 @@ Region segmentation of the painting with Meta SAM (Segment Anything Model)
 Companion code to Pešić et al., ICETRAN 2026 (ICETRAN.pdf).
 
 PIPELINE
-  1. Load cached XRF element maps (Ca, Ti, Fe, Cu, Pb) — Sn excluded
+  1. Load cached XRF element maps (Ca, Ti, Fe, Cu, Pb) - Sn excluded
   2. Build the SAM input image (false-color element composite, upscaled 8x)
   3. SAM automatic mask generation (prompt-free)
   4. Mask post-processing (downscale, majority vote, small-segment filter)
@@ -15,7 +15,7 @@ PIPELINE
   6. Conservator-facing report + figures
 
 NOTE ON Sn:
-  Tin is excluded from the analysis — it was identified as an acquisition
+  Tin is excluded from the analysis - it was identified as an acquisition
   artifact in the data, not a real pigment.
 
 Usage (from the project root):
@@ -66,7 +66,7 @@ RISK_CMAP = LinearSegmentedColormap.from_list("risk", [
 # Fixed rule identity colors (Okabe-Ito, colorblind-safe)
 RULE_COLORS = ["#0072B2", "#E69F00", "#009E73", "#D55E00", "#CC79A7"]
 
-# Degradation rules — paper Table II, chemistry-first severity weights
+# Degradation rules - paper Table II, chemistry-first severity weights
 RISK_RULES = [
     {"id": "R1", "el_a": "Ti",    "el_b": "Ca",    "w": 0.40,
      "name": "TiO2/CaCO3 thermal mismatch",
@@ -134,7 +134,7 @@ def load_element_maps(dataset):
                     break
         if not per_det:
             sys.exit(f"ERROR: element map '{el}' for '{dataset}' not found in "
-                     f"any cache — run scripts/01_run_analysis.py first.")
+                     f"any cache - run scripts/01_run_analysis.py first.")
         maps[el] = np.mean(per_det, axis=0)
     print(f"  [{dataset}] element maps loaded (detectors: {', '.join(sorted(used))})")
     return maps
@@ -149,7 +149,7 @@ def norm_percentile(m, q_lo=8, q_hi=99):
 print(f"Loading element maps ({DATASET})...")
 raw_maps = load_element_maps(DATASET)
 norm = {el: norm_percentile(raw_maps[el]) for el in ELEMENTS}
-print(f"  {len(ELEMENTS)} elements: {', '.join(ELEMENTS)}  (Sn excluded — artifact)")
+print(f"  {len(ELEMENTS)} elements: {', '.join(ELEMENTS)}  (Sn excluded - artifact)")
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -360,14 +360,14 @@ def region_level(mean_cvi):
 
 
 print(f"\n{'=' * 75}")
-print("  PER-REGION REPORT — SAM segmentation + CVI")
+print("  PER-REGION REPORT - SAM segmentation + CVI")
 print(f"{'=' * 75}")
 for r in region_reports[:15]:
     print(f"\n  Region {r['id']:2d}  |  {r['area_px']:4d} px ({r['area_pct']:5.1f}%)"
           f"  |  CVI: {r['cvi_mean']:.3f} (max {r['cvi_max']:.3f})"
           f"  |  [{region_level(r['cvi_mean'])}]")
     print(f"    Material: {r['material']}")
-    print(f"    Dominant risk: {r['dominant_risk']['id']} — {r['dominant_risk']['name']}")
+    print(f"    Dominant risk: {r['dominant_risk']['id']} - {r['dominant_risk']['name']}")
     print("    Elements: " + "  ".join(f"{el}={r['el_means'][el]:.2f}" for el in ELEMENTS))
     if r["pct_elevated"] > 0:
         print(f"    Elevated: {r['pct_elevated']:.1f}% of pixels"
@@ -410,7 +410,7 @@ for seg_id in range(1, n_segments + 1):
 fig, axes = plt.subplots(1, 3, figsize=(18, 3.9), layout="constrained")
 
 axes[0].imshow(rgb_input, origin="upper", aspect="equal", interpolation="bilinear")
-axes[0].set_title("SAM input — false-color composite\n(R=Fe, G=Cu, B=Pb)",
+axes[0].set_title("SAM input - false-color composite\n(R=Fe, G=Cu, B=Pb)",
                   fontsize=11, fontweight="bold")
 
 axes[1].imshow(seg_rgb, origin="upper", aspect="equal", interpolation="nearest")
@@ -427,7 +427,7 @@ axes[2].set_title("Segment boundaries on the XRF composite\n(white outlines)",
 for ax in axes:
     _blank(ax)
 
-fig.suptitle("Meta SAM — automatic region segmentation from XRF data",
+fig.suptitle("Meta SAM - automatic region segmentation from XRF data",
              fontsize=13, fontweight="bold")
 plt.savefig(os.path.join(OUT_DIR, "1_sam_segmentation.png"),
             dpi=200, bbox_inches="tight", facecolor="white")
@@ -446,7 +446,7 @@ fig, axes = plt.subplots(1, 3, figsize=(18, 3.9), layout="constrained")
 
 im0 = axes[0].imshow(cvi, origin="upper", aspect="equal", cmap=RISK_CMAP,
                      interpolation="bilinear", vmin=0, vmax=1)
-axes[0].set_title("CVI — pixel level", fontsize=11, fontweight="bold")
+axes[0].set_title("CVI - pixel level", fontsize=11, fontweight="bold")
 _style_cb(plt.colorbar(im0, ax=axes[0], **_MAP_CB), "CVI score")
 
 im1 = axes[1].imshow(region_cvi_map, origin="upper", aspect="equal",
@@ -470,7 +470,7 @@ axes[2].set_title("Regions labelled with mean CVI", fontsize=11, fontweight="bol
 for ax in axes:
     _blank(ax)
 
-fig.suptitle("Chemical Vulnerability Index — pixel vs region aggregation",
+fig.suptitle("Chemical Vulnerability Index - pixel vs region aggregation",
              fontsize=13, fontweight="bold")
 plt.savefig(os.path.join(OUT_DIR, "2_cvi_regions.png"),
             dpi=200, bbox_inches="tight", facecolor="white")
@@ -515,7 +515,7 @@ axes[1].legend(handles=patches, loc="upper center", ncol=2, fontsize=7.5,
 for ax in axes:
     _blank(ax)
 
-fig.suptitle("SAM regions — material identification and risk mechanisms",
+fig.suptitle("SAM regions - material identification and risk mechanisms",
              fontsize=13, fontweight="bold")
 plt.savefig(os.path.join(OUT_DIR, "3_material_and_risk.png"),
             dpi=200, bbox_inches="tight", facecolor="white")
@@ -570,7 +570,7 @@ bars = ax.barh(range(top_n), cvi_vals,
                color=[RISK_CMAP(v) for v in cvi_vals], height=0.62)
 for i, r in enumerate(top_reports):
     ax.text(cvi_vals[i] + 0.012, i,
-            f"{r['dominant_risk']['id']} — {MATERIAL_SHORT[r['dominant_el']]}",
+            f"{r['dominant_risk']['id']} - {MATERIAL_SHORT[r['dominant_el']]}",
             va="center", fontsize=8.5)
 
 ax.set_yticks(range(top_n))
@@ -614,7 +614,7 @@ axes[0, 2].set_title("Dominant material", fontsize=10.5, fontweight="bold")
 
 im = axes[1, 0].imshow(cvi, origin="upper", aspect="equal", cmap=RISK_CMAP,
                        interpolation="bilinear", vmin=0, vmax=1)
-axes[1, 0].set_title("CVI — pixel level", fontsize=10.5, fontweight="bold")
+axes[1, 0].set_title("CVI - pixel level", fontsize=10.5, fontweight="bold")
 _style_cb(plt.colorbar(im, ax=axes[1, 0], **_MAP_CB))
 
 im = axes[1, 1].imshow(region_cvi_map, origin="upper", aspect="equal",
@@ -629,7 +629,7 @@ axes[1, 2].set_title("Dominant degradation mechanism",
 for ax in axes.flatten():
     _blank(ax)
 
-fig.suptitle(f"SAM + CVI pipeline — full analysis ({DATASET})\n"
+fig.suptitle(f"SAM + CVI pipeline - full analysis ({DATASET})\n"
              "Meta Segment Anything Model + Chemical Vulnerability Index",
              fontsize=13, fontweight="bold")
 plt.savefig(os.path.join(OUT_DIR, "6_summary_panel.png"),
@@ -660,8 +660,8 @@ report = [
     "",
     "METHODOLOGY:",
     "  - Segmentation: Meta SAM (Segment Anything Model, ViT-B)",
-    "  - Risk: Chemical Vulnerability Index (CVI) — 5 degradation rules",
-    "  - Input: XRF maps of 5 elements (Ca, Ti, Fe, Cu, Pb) — Sn excluded",
+    "  - Risk: Chemical Vulnerability Index (CVI) - 5 degradation rules",
+    "  - Input: XRF maps of 5 elements (Ca, Ti, Fe, Cu, Pb) - Sn excluded",
     "",
     "STATISTICS:",
     f"  - Total pixels: {ROWS * COLS}",
@@ -679,11 +679,11 @@ for i, r in enumerate(region_reports[:10]):
     level = region_level(r["cvi_mean"])
     report += [
         "",
-        f"  [{i + 1}] Region {r['id']}  —  {level}",
+        f"  [{i + 1}] Region {r['id']} - {level}",
         f"      Area: {r['area_px']} px ({r['area_pct']:.1f}%)",
         f"      Material: {r['material']}",
         f"      CVI: {r['cvi_mean']:.3f} (max {r['cvi_max']:.3f})",
-        f"      Risk: {r['dominant_risk']['id']} — {r['dominant_risk']['name']}",
+        f"      Risk: {r['dominant_risk']['id']} - {r['dominant_risk']['name']}",
         f"            {r['dominant_risk']['desc']}",
         f"      Recommendation: {RECOMMENDATION[level]}",
     ]

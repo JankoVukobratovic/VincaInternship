@@ -94,11 +94,11 @@ class ResNetSpectralDenoiser(nn.Module):
         """
         Parameters
         ----------
-        x : (batch, 1, 1024) — 1D spectrum
+        x : (batch, 1, 1024) - 1D spectrum
 
         Returns
         -------
-        (batch, 1, 1024) — denoised 1D spectrum
+        (batch, 1, 1024) - denoised 1D spectrum
         """
         batch_size = x.shape[0]
 

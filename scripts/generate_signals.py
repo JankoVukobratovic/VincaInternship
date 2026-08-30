@@ -10,8 +10,7 @@ Output:
 
 Per-pixel peak detection:
   an element is marked "present" in a pixel when the integrated window
-  intensity exceeds 1.5 x (5th percentile of that element's map)
-  — i.e. clearly above the background level.
+  intensity exceeds 1.5 x (5th percentile of that element's map) - i.e. clearly above the background level.
 
 Requires the raw MCA files under Resources/ and the element-map cache
 (any of the known cache layouts). Run from the project root:

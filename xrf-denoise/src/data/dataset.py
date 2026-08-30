@@ -77,7 +77,7 @@ class XRFPoissonDataset(Dataset):
     PyTorch Dataset that generates Poisson-split pairs on the fly.
 
     Each __getitem__ call creates a FRESH random split of the selected pixel,
-    providing natural data augmentation — every epoch sees different noise.
+    providing natural data augmentation - every epoch sees different noise.
 
     Parameters
     ----------
@@ -110,7 +110,7 @@ class XRFPoissonDataset(Dataset):
         pixel_idx = self.indices[idx]
         spectrum = self.spectra[pixel_idx]  # (C,)
 
-        # Fresh Poisson split — different every call
+        # Fresh Poisson split - different every call
         split_a, split_b = poisson_split(spectrum, self.rng)
 
         # Normalize by global_scale (per-channel scale, not total sum)

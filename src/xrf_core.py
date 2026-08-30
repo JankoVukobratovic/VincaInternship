@@ -3,7 +3,7 @@ xrf_core.py
 ══════════════════════════════════════════════════════════════════════
 Unified XRF analysis engine.
 
-Element definitions live in elements.json — to add a new element, add
+Element definitions live in elements.json - to add a new element, add
 one JSON entry, e.g.
 
     "Mn": { "name": "Mn Kα", "kev": 5.895, "hw": 0.30, "color": "#884400" }
@@ -347,10 +347,10 @@ def process_folder(
             print(f"  [{label}] {i}/{total}  ({100 * i // total}%)")
 
     if n_read == 0:
-        # Never cache an all-zero cube — that silently poisons every
+        # Never cache an all-zero cube - that silently poisons every
         # downstream script the next time it loads "from cache".
         raise FileNotFoundError(
-            f"[{label}] no MCA files found in '{folder}' — check that the "
+            f"[{label}] no MCA files found in '{folder}' - check that the "
             "raw data are in place (see README: Setup / Raw MCA data)"
         )
 
@@ -450,7 +450,7 @@ def build_display_cube(
         disp_keys.append(g)
         print(f"  [{label}] {g} = combined {' + '.join(members)}")
 
-    # Corrected As channel — only when an explicit As window was integrated
+    # Corrected As channel - only when an explicit As window was integrated
     if "As" in ku:
         as_raw    = cube[ku["As"]]
         pb_lb_key = "PbLb" if "PbLb" in ku else ("Pb" if "Pb" in ku else None)
@@ -802,7 +802,7 @@ def plot_stacked_spectrum(
     for sp in ax.spines.values():
         sp.set_edgecolor("#AAAAAA")
     ax.set_title(
-        f"Summed spectrum — detector {det_label}  ({n_files} pixels)",
+        f"Summed spectrum - detector {det_label}  ({n_files} pixels)",
         fontsize=11, fontweight="bold", color="black"
     )
     os.makedirs(os.path.dirname(save_path) or ".", exist_ok=True)
@@ -1141,7 +1141,7 @@ def run_scan(
             render_display_grid(
                 disp_c, dkeys, elements, width, height,
                 save_path=os.path.join(output_dir, f"elements_det{det}.png"),
-                title=f"Element maps — detector {det}  ({width}×{height} px)",
+                title=f"Element maps - detector {det}  ({width}×{height} px)",
             )
             if stacked_spectrum:
                 plot_stacked_spectrum(
@@ -1166,7 +1166,7 @@ def run_scan(
             render_display_grid(
                 disp_sum, dk, elements, width, height,
                 save_path=os.path.join(output_dir, "elements_sum_detectors.png"),
-                title=f"Element maps — detectors {d1} + {d2} summed  (improved SNR)",
+                title=f"Element maps - detectors {d1} + {d2} summed  (improved SNR)",
             )
             render_display_grid(
                 disp_diff, dk, elements, width, height,
@@ -1201,7 +1201,7 @@ def run_scan(
         render_display_grid(
             disp_c, dkeys, elements, width, height,
             save_path=os.path.join(output_dir, label, "element_maps.png"),
-            title=f"Element maps — {label}  ({width}×{height} px, {integrator})\n"
+            title=f"Element maps - {label}  ({width}×{height} px, {integrator})\n"
                   "background-subtracted net peak intensities, spectral-overlap corrections applied",
         )
         if individual_maps:

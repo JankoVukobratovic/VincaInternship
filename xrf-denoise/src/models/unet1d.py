@@ -72,7 +72,7 @@ class UNet1D(nn.Module):
             self.decoders.append(ConvBlock1d(ch_in + ch_out, ch_out, 3, dropout))
             ch_in = ch_out
 
-        # Output — Softplus ensures non-negative predictions,
+        # Output - Softplus ensures non-negative predictions,
         # required for Poisson NLL loss (log of negative = NaN)
         self.output_conv = nn.Conv1d(base_filters, 1, kernel_size=1)
         self.output_act = nn.Softplus()

@@ -24,7 +24,7 @@ class Config:
     dataset_train: str = "aurora-antico1-prova1"  # Train/val/test on prova1
     dataset_val_external: str = "aurora-antico1-prova2"  # External validation
 
-    # Elements to analyze (Sn EXCLUDED — artifact)
+    # Elements to analyze (Sn EXCLUDED - artifact)
     elements: dict = field(default_factory=lambda: {
         'Ca':    {'kev': 3.69, 'name': 'Calcium Ka'},
         'Ti':    {'kev': 4.51, 'name': 'Titanium Ka'},

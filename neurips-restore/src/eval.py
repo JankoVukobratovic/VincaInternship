@@ -1,5 +1,5 @@
 """
-eval.py — metric harness for the neurips-restore MVP (item 2).
+eval.py - metric harness for the neurips-restore MVP (item 2).
 
 Import-friendly functions to score a restored frontal-frame element map
 against the frontal truth on the footprint actually covered by the

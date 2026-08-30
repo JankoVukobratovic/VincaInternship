@@ -4,7 +4,7 @@ make_submission_figures.py
 Publication-ready (submission) versions of the paper figures.
 
 Style rules:
-  - no titles/subtitles/stat boxes on the figures — descriptive text lives
+  - no titles/subtitles/stat boxes on the figures - descriptive text lives
     in submission/captions.txt instead
   - axis names, tick numbers, colorbars (numbers + short label) and legends
     are kept (English)
@@ -146,7 +146,7 @@ def fig_nmf_components(nmf_res):
         else:
             ax_sp.set_xticklabels([])
 
-        # emission-line labels — referenced by the paper caption, kept
+        # emission-line labels - referenced by the paper caption, kept
         peaks_idx, _ = find_peaks(H[k], height=np.max(H[k]) * 0.1,
                                   distance=5, prominence=np.max(H[k]) * 0.05)
         ax_sp.set_ylim(top=np.max(H[k]) * 1.22)
@@ -442,7 +442,7 @@ def fig_sam_segmentation(segments, info, cvi):
     blank(axes[1])
     style_cb(plt.colorbar(im, ax=axes[1], **_MAP_CB), "mean CVI")
 
-    # highest-risk regions labelled — referenced by the paper caption, kept
+    # highest-risk regions labelled - referenced by the paper caption, kept
     for s in [s for s in stats if s["area_pct"] >= 1][:6]:
         ys, xs = np.where(s["mask"])
         axes[1].text(xs.mean(), ys.mean(), f"R{s['id']}\n{s['cvi']:.2f}",
@@ -467,7 +467,7 @@ def write_captions(nmf_res, n_segments, val_res):
         f"({(r['el_a'] if r['el_a'] == r['el_b'] else r['el_a'] + '/' + r['el_b']).replace('_La', '')}, w={r['w']:.2f})"
         for i, r in enumerate(RISK_RULES)
     )
-    text = f"""SUBMISSION FIGURES — PANEL KEY AND CAPTIONS
+    text = f"""SUBMISSION FIGURES - PANEL KEY AND CAPTIONS
 All panels: detector 10264, dataset prova1 (scan grid 120x60 px), unless
 stated otherwise. Figures carry no titles; panel letters (a), (b), ...
 are printed on the panels and explained here.
@@ -476,7 +476,7 @@ fig_mop.png / fig_mop.jpg
     Photograph of the mockup canvas painting (140 x 75 mm) used in the
     study. Prepared with commercially grounded canvas (titanium white),
     lead white, red and yellow ochre, and copper-based green pigments.
-    (Image supplied separately by the authors — not generated here.)
+    (Image supplied separately by the authors - not generated here.)
 
 fig_element_maps.pdf
     Spatial element maps for the five elements of interest, each
@@ -578,7 +578,7 @@ if __name__ == "__main__":
     n_segments = 0
     if not args.no_sam:
         if not os.path.exists(SAM_CHECKPOINT):
-            print(f"  WARNING: {SAM_CHECKPOINT} missing — "
+            print(f"  WARNING: {SAM_CHECKPOINT} missing - "
                   "fig_sam_segmentation skipped.")
         else:
             segments, info, _ = run_sam(vuln_p1["norm"])

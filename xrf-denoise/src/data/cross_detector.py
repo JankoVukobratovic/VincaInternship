@@ -1,7 +1,7 @@
 """Cross-detector Noise2Noise dataset (dual-detector paper, PLAN §4.3 + 8.4).
 
 The two SDD detectors observe the same pixel simultaneously, so their
-spectra are conditionally independent Poisson realizations — but of
+spectra are conditionally independent Poisson realizations - but of
 DIFFERENT expected signals: the response ratio R(E) = E[A]/E[B] runs
 from ~6 at Ca Kα to ~0.65 at Pb Lγ. A valid Noise2Noise target must
 therefore be rescaled into the input detector's response scale,
@@ -14,16 +14,16 @@ Handoff 2 delivers that curve as
 :func:`ratio_curve_from_csv`. The older
 :func:`ratio_curve_from_table` builds a PROVISIONAL curve from the
 full-frame per-element ratios of ``efficiency_ratios.csv`` and is kept
-only for reproducing pre-handoff runs — those ratios carry the
+only for reproducing pre-handoff runs - those ratios carry the
 field-of-view artifact of PLAN §8.7. Trial trainings may also run
 entirely unscaled (``ratio_curve=None``), as PLAN §4.3 allows.
 
 Scaling caveat for the loss: a target multiplied by R(E) is no longer
-integer Poisson counts — use MSE (or a variance-weighted loss) on
+integer Poisson counts - use MSE (or a variance-weighted loss) on
 scaled targets, not ``poisson_nll`` on raw counts.
 
 Split policy (PLAN §4.3): training on prova1 + ruotato, evaluation on
-prova2 — per-scan split with spatial-block validation carved out of
+prova2 - per-scan split with spatial-block validation carved out of
 the training scans. Never random per-pixel.
 """
 
@@ -116,7 +116,7 @@ def ratio_curve_from_csv(
     kev_col: str = "kev",
     r_col: str = "R",
 ) -> np.ndarray:
-    """R(E) from a generic (kev, R) table — the handoff-2 GP curve."""
+    """R(E) from a generic (kev, R) table - the handoff-2 GP curve."""
     kev, r = [], []
     with open(csv_path, newline="") as fh:
         for row in csv.DictReader(fh):
@@ -139,10 +139,9 @@ def net_line_operator(
     """Benchmark net line integrals as one (K, C) linear operator.
 
     Row k applied to a spectrum reproduces the main repo's
-    ``xrf_core._integrate_fixed_hw`` for line ``keys[k]`` exactly —
-    peak window of ±hw around the line center, minus the linear
+    ``xrf_core._integrate_fixed_hw`` for line ``keys[k]`` exactly - peak window of ±hw around the line center, minus the linear
     background interpolated between the means of the two ``bg_hw``-wide
-    sidebands — except for the final ``max(0, ·)`` clamp, which is
+    sidebands - except for the final ``max(0, ·)`` clamp, which is
     dropped so the functional stays linear and differentiable (at real
     line pixels the net integral is positive anyway). Because
     ``sum(linspace(l, r, n)) = n*(l+r)/2``, the background subtraction
@@ -314,7 +313,7 @@ class XRFCrossDetectorDataset(Dataset):
 
         Design reasoning. The anchor is NOT the noisy N2N target: in
         direction 0 the target is R*b, whose net integral at Ca carries
-        R^2 ~ 34x detector B's window variance — a very noisy level
+        R^2 ~ 34x detector B's window variance - a very noisy level
         reference that also uses only one detector. The per-channel N2N
         argument (target must be independent of the input) does not
         carry over to the level term either, because the level error
@@ -332,7 +331,7 @@ class XRFCrossDetectorDataset(Dataset):
         the classical weighted fusion); the weight must stay moderate.
 
         When set, ``__getitem__`` always returns 5-tuples
-        ``(x, y, w, anchor, var)`` — ``w`` falls back to ones when
+        ``(x, y, w, anchor, var)`` - ``w`` falls back to ones when
         ``return_weight`` is False.
     """
 

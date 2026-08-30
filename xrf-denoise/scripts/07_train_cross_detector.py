@@ -28,7 +28,7 @@ the benchmark's own net-integral functional of the prediction is
 pulled toward the inverse-variance combination of the two raw
 detectors, per pixel, normalized by the anchor's estimated variance
 (a chi^2 per line). Per-channel MSE is blind to a level error that
-hides in the continuum under a line window — this term measures the
+hides in the continuum under a line window - this term measures the
 prediction with exactly the integrator the maps are made with. Full
 design reasoning: src/data/cross_detector.py (``integral_anchor``).
 Such runs write the held-out list under a suffixed name so the main

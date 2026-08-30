@@ -1,5 +1,5 @@
 """
-02_deterministic_baseline.py — the deterministic restoration baseline
+02_deterministic_baseline.py - the deterministic restoration baseline
 that any learned model must beat (MVP item 2).
 
 Restores the REAL tilted scan (ruotato, 45x80) into the frontal frame
@@ -166,9 +166,9 @@ def main():
         truth, warped, corrected, mask = fig_data[el]
         vmin, vmax = np.percentile(truth[mask], [1, 99])
         panels = [
-            (np.where(mask, truth, np.nan), f"{el} — truth (mean prova1/2)"),
-            (warped, f"{el} — warped-back ruotato"),
-            (corrected, f"{el} — warp + gain (÷{ev.read_tilt_gains()[el]:.4f})"),
+            (np.where(mask, truth, np.nan), f"{el} - truth (mean prova1/2)"),
+            (warped, f"{el} - warped-back ruotato"),
+            (corrected, f"{el} - warp + gain (÷{ev.read_tilt_gains()[el]:.4f})"),
         ]
         for j, (img, title) in enumerate(panels):
             ax = axes[i, j]
@@ -181,7 +181,7 @@ def main():
         cb = fig.colorbar(im, ax=axes[i, :], fraction=0.025, pad=0.01)
         cb.set_label("counts / s", fontsize=8)
         cb.ax.tick_params(labelsize=7)
-    fig.suptitle("Deterministic baseline — real tilted scan restored to the "
+    fig.suptitle("Deterministic baseline - real tilted scan restored to the "
                  "frontal frame (shared color scale per row; gray = outside "
                  "footprint)", fontsize=11, fontweight="bold")
     fig.savefig(PNG_PATH, dpi=150, bbox_inches="tight")

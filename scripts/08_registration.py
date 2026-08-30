@@ -66,7 +66,7 @@ MIN_VALID_PX = 300
 def load_map(scan: str, det: str, el: str) -> np.ndarray:
     p = os.path.join(CACHE_DIR, f"{scan}_{det}_{el}.npy")
     if not os.path.exists(p):
-        sys.exit(f"ERROR: cache missing: {p} — run scripts/06_efficiency_ratios.py first.")
+        sys.exit(f"ERROR: cache missing: {p} - run scripts/06_efficiency_ratios.py first.")
     return np.load(p)
 
 
@@ -333,9 +333,9 @@ f = cos(alpha):
         warped, valid = warp_reference(feats["prova1"][i], p_ruo, src.shape)
         resid = np.where(valid, src - warped, np.nan)
         for j, (img, title) in enumerate([
-            (src, f"{el} — ruotato"),
-            (np.where(valid, warped, np.nan), f"{el} — prova1 warped"),
-            (resid, f"{el} — residual"),
+            (src, f"{el} - ruotato"),
+            (np.where(valid, warped, np.nan), f"{el} - prova1 warped"),
+            (resid, f"{el} - residual"),
         ]):
             ax = axes[i, j]
             if j < 2:
@@ -347,7 +347,7 @@ f = cos(alpha):
             ax.set_xticks([]); ax.set_yticks([])
             plt.colorbar(im, ax=ax, fraction=0.03)
     fig.suptitle(
-        f"Registration QA — ruotato vs warped prova1   "
+        f"Registration QA - ruotato vs warped prova1   "
         f"(f = {f_joint:.3f} ± {f_sigma:.3f}, implied tilt {alpha:.1f}°)",
         fontweight="bold")
     qa_path = os.path.join(OUTPUT_DIR, "registration_check.png")

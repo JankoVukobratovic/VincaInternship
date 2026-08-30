@@ -64,7 +64,7 @@ def register_scans(
 
     # If shift is zero or very small, skip alignment
     if abs(dy) < 0.5 and abs(dx) < 0.5:
-        print("  Shift negligible — skipping alignment")
+        print("  Shift negligible - skipping alignment")
         return cube_a.copy(), cube_b.copy(), (dy, dx)
 
     # Apply shift to cube_b (channel by channel)

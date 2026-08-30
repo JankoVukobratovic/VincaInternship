@@ -1,6 +1,6 @@
 """
 01_run_analysis.py
-Driver for xrf_core.run_scan — element maps for prova1 (and prova2 when
+Driver for xrf_core.run_scan - element maps for prova1 (and prova2 when
 available) on detector 10264.
 
 Run from the project root:
@@ -67,7 +67,7 @@ if __name__ == "__main__":
     }
     skipped = sorted(set(CANDIDATES) - set(datasets))
     for label in skipped:
-        print(f"NOTE: '{label}' skipped — no npy cache and no raw data in "
+        print(f"NOTE: '{label}' skipped - no npy cache and no raw data in "
               f"{CANDIDATES[label]} (see README: Setup / Raw MCA data).")
 
     if not datasets:

@@ -67,7 +67,7 @@ KNOWN_PEAKS = {
     'Sr Ka': 14.16, 'Sn Ka': 25.27,
 }
 
-# Degradation rules — paper Table II, chemistry-first severity weights
+# Degradation rules - paper Table II, chemistry-first severity weights
 RISK_RULES = [
     {'id': 'R1', 'el_a': 'Ti',    'el_b': 'Ca',    'w': 0.40,
      'name': 'TiO2/CaCO3 thermal mismatch',
@@ -423,7 +423,7 @@ def plot_element_maps(maps_raw, maps_denoised, norm_den, fig_dir):
     for i, row_name in enumerate(['Raw', 'Denoised', 'Raw − Denoised']):
         axes[i, 0].set_ylabel(row_name, fontsize=10, fontweight='bold')
 
-    fig.suptitle('Element maps — raw vs denoised (difference = removed noise)',
+    fig.suptitle('Element maps - raw vs denoised (difference = removed noise)',
                  fontsize=13, fontweight='bold')
     plt.savefig(fig_dir / '01_element_maps_raw_vs_denoised.png',
                 dpi=180, bbox_inches='tight')
@@ -556,7 +556,7 @@ def plot_publication_figure(maps_raw, maps_denoised, nmf_res, cvi_data,
                             norm_maps, fig_dir):
     """Publication-quality composite figure (paper Fig. 1 layout).
     3 rows: (a) raw element maps, (b) denoised, (c) CVI + zones + overlay.
-    NMF excluded — one component captures background (support), not pigment.
+    NMF excluded - one component captures background (support), not pigment.
     """
     n_el = len(ELEMENTS)
     fig = plt.figure(figsize=(16, 8.2), layout='constrained')
@@ -643,7 +643,7 @@ def plot_sam_results(segments_data, region_reports, cvi_data, norm_maps,
 
     fig, axes = plt.subplots(1, 3, figsize=(18, 3.9), layout='constrained')
     axes[0].imshow(rgb_input, origin='upper', aspect='equal', interpolation='bilinear')
-    axes[0].set_title('SAM input — false-color composite\n(R=Fe, G=Cu, B=Pb)',
+    axes[0].set_title('SAM input - false-color composite\n(R=Fe, G=Cu, B=Pb)',
                       fontsize=11, fontweight='bold')
 
     axes[1].imshow(seg_rgb, origin='upper', aspect='equal', interpolation='nearest')
@@ -688,7 +688,7 @@ def plot_sam_results(segments_data, region_reports, cvi_data, norm_maps,
 
     im = axes[1, 0].imshow(cvi, origin='upper', aspect='equal', cmap=RISK_CMAP,
                            interpolation='bilinear', vmin=0, vmax=1)
-    axes[1, 0].set_title('CVI — pixel level', fontsize=10.5, fontweight='bold')
+    axes[1, 0].set_title('CVI - pixel level', fontsize=10.5, fontweight='bold')
     _style_cb(plt.colorbar(im, ax=axes[1, 0], **_MAP_CB))
 
     im = axes[1, 1].imshow(region_cvi_map, origin='upper', aspect='equal',
@@ -727,7 +727,7 @@ def generate_risk_table(region_reports, cvi_data, nmf_res, elapsed, fig_dir):
     lines.append("METHODOLOGY:")
     lines.append("  1. UNet1D denoising (self-supervised Poisson splitting)")
     lines.append("  2. NMF blind spectral decomposition")
-    lines.append("  3. Chemical Vulnerability Index (CVI) — 5 degradation rules")
+    lines.append("  3. Chemical Vulnerability Index (CVI) - 5 degradation rules")
     if region_reports:
         lines.append("  4. SAM (Segment Anything Model) automatic segmentation")
     lines.append("")
@@ -743,7 +743,7 @@ def generate_risk_table(region_reports, cvi_data, nmf_res, elapsed, fig_dir):
 
     if region_reports:
         lines.append("=" * 75)
-        lines.append("  RISK TABLE — TOP REGIONS (sorted by CVI)")
+        lines.append("  RISK TABLE - TOP REGIONS (sorted by CVI)")
         lines.append("=" * 75)
         lines.append("")
         lines.append(f"  {'#':>3} {'Region':>7} {'Area%':>6} {'CVI':>6} "
@@ -926,7 +926,7 @@ if __name__ == '__main__':
                          'ELEVATED' if r['cvi_mean'] >= 0.5 else
                          'MODERATE' if r['cvi_mean'] >= 0.25 else 'LOW')
                 print(f"    R{r['id']:2d}: CVI={r['cvi_mean']:.3f} [{level}] "
-                      f"— {r['material']}")
+                      f" - {r['material']}")
     else:
         print("\n[6/7] SAM segmentation SKIPPED (--no-sam)")
 

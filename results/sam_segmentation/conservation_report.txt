@@ -6,8 +6,8 @@
 
 METHODOLOGY:
   - Segmentation: Meta SAM (Segment Anything Model, ViT-B)
-  - Risk: Chemical Vulnerability Index (CVI) — 5 degradation rules
-  - Input: XRF maps of 5 elements (Ca, Ti, Fe, Cu, Pb) — Sn excluded
+  - Risk: Chemical Vulnerability Index (CVI) - 5 degradation rules
+  - Input: XRF maps of 5 elements (Ca, Ti, Fe, Cu, Pb) - Sn excluded
 
 STATISTICS:
   - Total pixels: 7200
@@ -20,75 +20,75 @@ STATISTICS:
   TOP REGIONS BY RISK (conservation priorities)
 ===========================================================================
 
-  [1] Region 4  —  ELEVATED
+  [1] Region 4 - ELEVATED
       Area: 306 px (4.2%)
       Material: Cu-based green pigment
       CVI: 0.533 (max 0.947)
-      Risk: R2 — Cu-based green pigment degradation
+      Risk: R2 - Cu-based green pigment degradation
             Basic copper carbonates transform in humid air
       Recommendation: Priority assessment, plan consolidation
 
-  [2] Region 5  —  MODERATE
+  [2] Region 5 - MODERATE
       Area: 7 px (0.1%)
       Material: Cu-based green pigment
       CVI: 0.486 (max 0.615)
-      Risk: R2 — Cu-based green pigment degradation
+      Risk: R2 - Cu-based green pigment degradation
             Basic copper carbonates transform in humid air
       Recommendation: Preventive monitoring
 
-  [3] Region 6  —  MODERATE
+  [3] Region 6 - MODERATE
       Area: 167 px (2.3%)
       Material: Cu-based green pigment
       CVI: 0.466 (max 0.669)
-      Risk: R2 — Cu-based green pigment degradation
+      Risk: R2 - Cu-based green pigment degradation
             Basic copper carbonates transform in humid air
       Recommendation: Preventive monitoring
 
-  [4] Region 8  —  MODERATE
+  [4] Region 8 - MODERATE
       Area: 174 px (2.4%)
       Material: Lead white (Pb-based pigment)
       CVI: 0.456 (max 0.687)
-      Risk: R3 — Lead white darkening (PbS)
+      Risk: R3 - Lead white darkening (PbS)
             PbCO3 -> PbS in the presence of sulfur compounds
       Recommendation: Preventive monitoring
 
-  [5] Region 3  —  MODERATE
+  [5] Region 3 - MODERATE
       Area: 1791 px (24.9%)
       Material: Lead white (Pb-based pigment)
       CVI: 0.441 (max 0.972)
-      Risk: R3 — Lead white darkening (PbS)
+      Risk: R3 - Lead white darkening (PbS)
             PbCO3 -> PbS in the presence of sulfur compounds
       Recommendation: Preventive monitoring
 
-  [6] Region 2  —  MODERATE
+  [6] Region 2 - MODERATE
       Area: 2246 px (31.2%)
       Material: Lead white (Pb-based pigment)
       CVI: 0.437 (max 0.971)
-      Risk: R3 — Lead white darkening (PbS)
+      Risk: R3 - Lead white darkening (PbS)
             PbCO3 -> PbS in the presence of sulfur compounds
       Recommendation: Preventive monitoring
 
-  [7] Region 1  —  MODERATE
+  [7] Region 1 - MODERATE
       Area: 2343 px (32.5%)
       Material: Cu-based green pigment
       CVI: 0.434 (max 0.924)
-      Risk: R2 — Cu-based green pigment degradation
+      Risk: R2 - Cu-based green pigment degradation
             Basic copper carbonates transform in humid air
       Recommendation: Preventive monitoring
 
-  [8] Region 9  —  MODERATE
+  [8] Region 9 - MODERATE
       Area: 122 px (1.7%)
       Material: Cu-based green pigment
       CVI: 0.369 (max 0.499)
-      Risk: R2 — Cu-based green pigment degradation
+      Risk: R2 - Cu-based green pigment degradation
             Basic copper carbonates transform in humid air
       Recommendation: Preventive monitoring
 
-  [9] Region 7  —  MODERATE
+  [9] Region 7 - MODERATE
       Area: 44 px (0.6%)
       Material: Lime/chalk layer (CaCO3)
       CVI: 0.368 (max 0.882)
-      Risk: R1 — TiO2/CaCO3 thermal mismatch
+      Risk: R1 - TiO2/CaCO3 thermal mismatch
             TiO2 layer over a CaCO3-bearing ground
       Recommendation: Preventive monitoring
 
