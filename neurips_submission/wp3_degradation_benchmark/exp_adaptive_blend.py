@@ -71,6 +71,7 @@ from wp1_uq_ensemble import exp_ensemble_uq as uq
 
 ELEMENTS = core.ELEMENTS
 CSV = "wp3_adaptive_blend"
+CSV2 = "wp3_adaptive_blend_v2"
 
 
 def var_ref() -> dict:
@@ -101,6 +102,25 @@ def adaptive_blend(mean_jitter: dict, std_jitter: dict,
     return out
 
 
+def adaptive_blend_dose(mean_jitter: dict, std_jitter: dict,
+                        biharmonic: dict, dose: float) -> dict:
+    """adaptive_blend with the reference variance scaled by acquisition
+    dose. restore.degrade() scales truth (and so the signal both the
+    fill and the net are estimating) by dose, so the fixed dose=1
+    var_ref used by adaptive_blend overstates how far std_jitter is
+    from that reference once dose < 1 - the net gets trusted with a
+    dose=1-sized precision even where its own spread has not shrunk to
+    match a 4x smaller true signal. Scaling var_ref by dose corrects
+    that without adding a fitted parameter."""
+    vr = get_var_ref()
+    out = {}
+    for el in ELEMENTS:
+        vr_d = vr[el] * dose
+        w = vr_d / (vr_d + std_jitter[el] ** 2)
+        out[el] = w * mean_jitter[el] + (1.0 - w) * biharmonic[el]
+    return out
+
+
 def candidates(net, members, tilted, v_tilt, angle, validity):
     """Same candidate set as exp_degradation_grid.candidates(), plus
     adaptive_blend; v_tilt is required here (holes are the point)."""
@@ -125,6 +145,20 @@ def candidates(net, members, tilted, v_tilt, angle, validity):
     return cands
 
 
+def candidates_dose(net, members, tilted, v_tilt, angle, validity, dose):
+    """candidates() plus adaptive_blend_dose (v2 addendum); recomputes
+    nothing that candidates() already computed, just adds the one
+    extra blend on top."""
+    cands = candidates(net, members, tilted, v_tilt, angle, validity)
+    if v_tilt is not None and "ens_jitter" in cands \
+            and "classical_biharmonic" in cands:
+        mean_j, std_j, _, _ = uq.ensemble_predict(members, tilted, angle,
+                                                  validity=validity)
+        cands["adaptive_blend_dose"] = adaptive_blend_dose(
+            mean_j, std_j, cands["classical_biharmonic"], dose)
+    return cands
+
+
 def done_keys(rows):
     return {case_key(r["angle"], r["hole"], r["dose"], r["seed"], r["sim"])
             for r in rows}
@@ -136,6 +170,18 @@ def run_case(net, members, angle, h, w, dose, seed, sim):
                            seed=seed, sim=sim)
     cands = candidates(net, members, case["tilted"], case["v_tilt"],
                        case["angle"], case["validity"])
+    scored = restore.score_candidates(
+        cands, case["truth"], {"footprint": case["fp"], "hole": case["hole"]})
+    return [{"angle": angle, "hole_px": h * w, "hole": f"{h}x{w}",
+             "dose": dose, "seed": seed, "sim": sim, **r} for r in scored]
+
+
+def run_case_dose(net, members, angle, h, w, dose, seed, sim):
+    case = restore.degrade(source="prova2", angle=angle,
+                           block=restore.centered_block(h, w), dose=dose,
+                           seed=seed, sim=sim)
+    cands = candidates_dose(net, members, case["tilted"], case["v_tilt"],
+                            case["angle"], case["validity"], dose)
     scored = restore.score_candidates(
         cands, case["truth"], {"footprint": case["fp"], "hole": case["hole"]})
     return [{"angle": angle, "hole_px": h * w, "hole": f"{h}x{w}",
@@ -189,6 +235,57 @@ def run(quick: bool = False):
     print(f"saved: {path}  ({len(rows)} rows, {n_new} new cases,"
           f" {time.time() - t0:.0f} s)")
     summarize()
+
+
+def run_dose(quick: bool = False):
+    """Same grid as run(), scoring adaptive_blend_dose in addition to
+    every candidate in CANDS; writes CSV2 so wp3_adaptive_blend.csv is
+    never touched."""
+    torch.set_num_threads(2)
+    net = restore.load_mvp_net()
+    if net is None:
+        raise SystemExit("MVP checkpoint missing - see exp_degradation_grid")
+    members = load_jitter_members()
+    if not members:
+        raise SystemExit("WP1 jitter ensemble missing/incomplete - "
+                         "adaptive_blend needs it")
+
+    grid = config.GRID_QUICK if quick else config.GRID
+    plan = [(a, hw, d, s, "validated") for a, hw, d, s in itertools.product(
+        grid["angles"], grid["holes"], grid["doses"], grid["seeds"])]
+
+    rows = io_utils.read_rows(CSV2)
+    done = done_keys(rows)
+    t0 = time.time()
+    n_new = 0
+    for i, (angle, (h, w), dose, seed, sim) in enumerate(plan):
+        key = case_key(angle, f"{h}x{w}", dose, seed, sim)
+        if key in done:
+            continue
+        print(f"[{i + 1}/{len(plan)}] angle={angle:g} hole={h}x{w} "
+              f"dose={dose:g} seed={seed}  [{time.time() - t0:.0f} s]",
+              flush=True)
+        rows += run_case_dose(net, members, angle, h, w, dose, seed, sim)
+        done.add(key)
+        n_new += 1
+        if n_new % 10 == 0:
+            io_utils.write_rows(CSV2, rows)
+
+    if case_key(core.fm.REF_ANGLE_DEG, "0x0", 1.0, -1, "real") not in done:
+        ruo = core.fm.load_summed_maps("ruotato")
+        truth2 = core.fm.load_summed_maps("prova2")
+        cands = candidates_dose(net, members, ruo, np.ones(core.TILTED_SHAPE),
+                                core.fm.REF_ANGLE_DEG, None, 1.0)
+        scored = restore.score_candidates(cands, truth2,
+                                          {"footprint": core.dg.footprint()})
+        rows += [{"angle": core.fm.REF_ANGLE_DEG, "hole_px": 0, "hole": "0x0",
+                  "dose": 1.0, "seed": -1, "sim": "real", **r}
+                 for r in scored]
+        print("real anchor done")
+    path = io_utils.write_rows(CSV2, rows)
+    print(f"saved: {path}  ({len(rows)} rows, {n_new} new cases,"
+          f" {time.time() - t0:.0f} s)")
+    summarize_dose()
 
 
 # ---------------------------------------------------------------------------
@@ -341,12 +438,117 @@ def summarize():
     return text
 
 
+CANDS2 = CANDS + ("adaptive_blend_dose",)
+
+
+def summarize_dose():
+    rows = io_utils.read_rows(CSV2)
+    if not rows:
+        print("no rows yet - run --v2 first")
+        return ""
+    sim = _sel(rows, sim="validated")
+    holes = [f"{h}x{w}" for (h, w) in config.GRID["holes"]]
+    angles = list(config.GRID["angles"])
+    present = [c for c in CANDS2 if _sel(sim, candidate=c)]
+
+    L = []
+    P = L.append
+    P("WP3 addendum v2 - dose-aware adaptive blend (adaptive_blend_dose:"
+      " var_ref scaled by acquisition dose, testing whether that fixes"
+      " the low-dose collapse of the plain adaptive_blend)")
+    P(f"rows {len(rows)}; candidates: {', '.join(present)}")
+    P("")
+
+    P("[verdict: adaptive_blend_dose vs adaptive_blend, hole region, all"
+      " doses - does dose-awareness help or hurt at each dose]")
+    for d in config.GRID["doses"]:
+        d_new, d_old = [], []
+        for a in angles:
+            for hole in holes[1:]:
+                v_new = _mean(_sel(sim, angle=a, hole=hole, dose=d,
+                                   candidate="adaptive_blend_dose",
+                                   region="hole"))
+                v_old = _mean(_sel(sim, angle=a, hole=hole, dose=d,
+                                   candidate="adaptive_blend",
+                                   region="hole"))
+                if np.isfinite(v_new) and np.isfinite(v_old):
+                    d_new.append(v_new)
+                    d_old.append(v_old)
+        d_new, d_old = np.array(d_new), np.array(d_old)
+        wins = int(np.sum(d_new > d_old)) if len(d_new) else 0
+        P(f"  dose {d:g}: adaptive_blend_dose wins {wins}/{len(d_new)}"
+          f" cells; mean r dose-aware {d_new.mean():.4f} vs plain"
+          f" {d_old.mean():.4f} (delta {d_new.mean() - d_old.mean():+.4f})")
+
+    P("")
+    P("[verdict: adaptive_blend_dose vs the fixed hybrid"
+      " classical_biharmonic+net, dose 1]")
+    for region in ("hole", "footprint"):
+        holes_r = holes[1:] if region == "hole" else holes
+        d_ab, d_hy = [], []
+        for a in angles:
+            for hole in holes_r:
+                v_ab = _mean(_sel(sim, angle=a, hole=hole, dose=1.0,
+                                  candidate="adaptive_blend_dose",
+                                  region=region))
+                v_hy = _mean(_sel(sim, angle=a, hole=hole, dose=1.0,
+                                  candidate="classical_biharmonic+net",
+                                  region=region))
+                if np.isfinite(v_ab) and np.isfinite(v_hy):
+                    d_ab.append(v_ab)
+                    d_hy.append(v_hy)
+        d_ab, d_hy = np.array(d_ab), np.array(d_hy)
+        wins = int(np.sum(d_ab > d_hy)) if len(d_ab) else 0
+        P(f"  {region}: adaptive_blend_dose beats the fixed hybrid in"
+          f" {wins}/{len(d_ab)} cells (dose 1); mean r"
+          f" adaptive_blend_dose {d_ab.mean():.4f} vs hybrid"
+          f" {d_hy.mean():.4f} (delta {d_ab.mean() - d_hy.mean():+.4f})")
+
+    # dose effect, all candidates
+    P("")
+    P("[dose effect: mean r over angles, seeds, 8 lines; hole 14x20 /"
+      " footprint 0x0]")
+    for d in config.GRID["doses"]:
+        parts = []
+        for c in present:
+            v_h = _mean(_sel(sim, hole="14x20", dose=d, candidate=c,
+                             region="hole"))
+            v_f = _mean(_sel(sim, hole="0x0", dose=d, candidate=c,
+                             region="footprint"))
+            parts.append(f"{c} {v_h:.3f}/{v_f:.3f}")
+        P(f"  dose {d:g}: " + "  ".join(parts))
+
+    real = _sel(rows, sim="real")
+    if real:
+        P("")
+        P("[REAL anchor: ruotato vs prova2, footprint, mean r (cv_ratio)]")
+        rc = [c for c in present if _sel(real, candidate=c)]
+        for c in rc:
+            P(f"    {c:26s} {_mean(_sel(real, candidate=c)):.4f}"
+              f" ({_mean(_sel(real, candidate=c), 'cv_ratio'):.3f})")
+
+    text = "\n".join(L)
+    print(text)
+    path = os.path.join(core.RESULTS_DIR, "wp3_adaptive_blend_v2_summary.txt")
+    with open(path, "w", encoding="utf-8") as fh:
+        fh.write(text + "\n")
+    return text
+
+
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("--quick", action="store_true")
     ap.add_argument("--summary", action="store_true")
+    ap.add_argument("--v2", action="store_true",
+                    help="run the dose-aware adaptive_blend_dose addendum"
+                         " (writes wp3_adaptive_blend_v2.csv)")
+    ap.add_argument("--summary-v2", action="store_true")
     args = ap.parse_args()
     if args.summary:
         summarize()
+    elif args.summary_v2:
+        summarize_dose()
+    elif args.v2:
+        run_dose(quick=args.quick)
     else:
         run(quick=args.quick)

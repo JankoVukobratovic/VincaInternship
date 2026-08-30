@@ -1,0 +1,25 @@
+WP3 addendum v2 - dose-aware adaptive blend (adaptive_blend_dose: var_ref scaled by acquisition dose, testing whether that fixes the low-dose collapse of the plain adaptive_blend)
+rows 18200; candidates: det, net, ens_jitter, classical_biharmonic, classical_biharmonic+net, adaptive_blend, adaptive_blend_dose
+
+[verdict: adaptive_blend_dose vs adaptive_blend, hole region, all doses - does dose-awareness help or hurt at each dose]
+  dose 1: adaptive_blend_dose wins 0/16 cells; mean r dose-aware 0.3909 vs plain 0.3909 (delta +0.0000)
+  dose 0.5: adaptive_blend_dose wins 16/16 cells; mean r dose-aware 0.3310 vs plain 0.3301 (delta +0.0009)
+  dose 0.25: adaptive_blend_dose wins 16/16 cells; mean r dose-aware 0.1526 vs plain 0.1512 (delta +0.0014)
+
+[verdict: adaptive_blend_dose vs the fixed hybrid classical_biharmonic+net, dose 1]
+  hole: adaptive_blend_dose beats the fixed hybrid in 0/16 cells (dose 1); mean r adaptive_blend_dose 0.3909 vs hybrid 0.4758 (delta -0.0850)
+  footprint: adaptive_blend_dose beats the fixed hybrid in 8/20 cells (dose 1); mean r adaptive_blend_dose 0.9590 vs hybrid 0.9582 (delta +0.0008)
+
+[dose effect: mean r over angles, seeds, 8 lines; hole 14x20 / footprint 0x0]
+  dose 1: det 0.169/0.977  net 0.410/0.985  ens_jitter 0.321/0.984  classical_biharmonic 0.467/0.977  classical_biharmonic+net 0.474/0.985  adaptive_blend 0.324/0.984  adaptive_blend_dose 0.324/0.984
+  dose 0.5: det 0.169/0.973  net 0.272/0.979  ens_jitter 0.203/0.979  classical_biharmonic 0.463/0.973  classical_biharmonic+net 0.465/0.979  adaptive_blend 0.204/0.979  adaptive_blend_dose 0.206/0.979
+  dose 0.25: det 0.169/0.964  net 0.030/0.968  ens_jitter -0.007/0.969  classical_biharmonic 0.455/0.964  classical_biharmonic+net 0.456/0.968  adaptive_blend -0.007/0.969  adaptive_blend_dose -0.005/0.969
+
+[REAL anchor: ruotato vs prova2, footprint, mean r (cv_ratio)]
+    det                        0.9526 (0.947)
+    net                        0.9485 (0.989)
+    ens_jitter                 0.9527 (0.979)
+    classical_biharmonic       0.9526 (0.947)
+    classical_biharmonic+net   0.9485 (0.989)
+    adaptive_blend             0.9527 (0.979)
+    adaptive_blend_dose        0.9527 (0.979)
