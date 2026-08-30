@@ -47,18 +47,18 @@ without new experiments:**
    this derivation is why: they are not merely correlated, they are exactly
    degenerate to first order at one angle.
 2. WP2's post-hoc `gain_proj` statistic is the projection of the per-line
-   level deviation onto `v_el` — this derivation shows that projection is
+   level deviation onto `v_el` - this derivation shows that projection is
    (under isotropic noise) the maximum-likelihood estimator of `kappa` along
    the single observable direction. That is exactly why it recovers the
    extreme rungs (`gain x0`, `gain x2`, large `|kappa|`) but not `x0.5`,
    `x1.5`, or `angle +-2/+-5 deg` (small `|kappa|`, inside the noise floor of
-   the kappa estimate) — the statistic was, without anyone deriving it this
+   the kappa estimate) - the statistic was, without anyone deriving it this
    way at the time, already the right one for the identifiable direction.
 3. WP4's ABC posterior marginals for `gain_scale` and `angle_bias` match the
    prior (Fig. 3 omits them for exactly this reason): the real scan is one
    measurement at one angle (7.7 deg), so the ABC likelihood surface is flat
    along the `delta_a = a0*(kappa - delta_s)` line for any fixed kappa the
-   data does constrain — the posterior is not weak by accident, it is flat in
+   data does constrain - the posterior is not weak by accident, it is flat in
    a direction the experiment cannot see.
 
 Numeric illustration (the measured profile `v_el = p_el/100`, `p_el` from
