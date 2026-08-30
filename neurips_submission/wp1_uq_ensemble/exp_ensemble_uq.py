@@ -750,7 +750,7 @@ def make_figures():
     panels = [("simulated, footprint", is_sim, "footprint"),
               ("simulated, hole", is_sim, "hole"),
               ("real scan, footprint", is_real, "footprint")]
-    fig, axes = plt.subplots(1, 3, figsize=(7.4, 2.15), sharey=True)
+    fig, axes = plt.subplots(1, 3, figsize=(7.4, 1.95), sharey=True)
     style = {("jitter", "ens"): dict(color=NAVY, ls=":", marker="o"),
              ("jitter", "total"): dict(color=NAVY, ls="-", marker="o"),
              ("jitter", "total_ref"): dict(color=NAVY, ls="--", marker="o"),

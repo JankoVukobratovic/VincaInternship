@@ -509,7 +509,7 @@ def make_figures():
                "r(net) - r(physics)\n(up = better)")]
     fig, axes = plt.subplots(len(panels), len(families),
                              figsize=(1.45 * len(families),
-                                      1.25 * len(panels)),
+                                      1.1 * len(panels)),
                              sharey="row")
     axes = np.atleast_2d(axes)
     for j, fam in enumerate(families):
