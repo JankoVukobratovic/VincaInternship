@@ -1,0 +1,65 @@
+WP3 addendum - parameter-free adaptive blend (precision-weighted: ensemble mean where jitter spread is low, biharmonic fill where it is high; var_ref fixed a priori = norm_scales()^2, no fit)
+rows 15600; candidates: det, net, ens_jitter, classical_biharmonic, classical_biharmonic+net, adaptive_blend
+
+[hole, dose 1, mean r over seeds and all 8 lines]
+     angle   hole                       det                       net                ens_jitter      classical_biharmonic  classical_biharmonic+net            adaptive_blend                      best
+         8    6x8                    0.0889                    0.3994                    0.4507                    0.5278                    0.5586                    0.4520  classical_biharmonic+net
+         8  10x14                    0.3094                    0.4299                    0.4729                    0.4679                    0.4870                    0.4749  classical_biharmonic+net
+         8  14x20                    0.1694                    0.3972                    0.3230                    0.4666                    0.4742                    0.3264  classical_biharmonic+net
+         8  18x26                    0.0975                    0.2799                    0.3009                    0.3794                    0.3844                    0.3029  classical_biharmonic+net
+        14    6x8                    0.0889                    0.3775                    0.4555                    0.5282                    0.5584                    0.4571  classical_biharmonic+net
+        14  10x14                    0.3094                    0.4328                    0.4766                    0.4678                    0.4869                    0.4786  classical_biharmonic+net
+        14  14x20                    0.1694                    0.4072                    0.3219                    0.4666                    0.4739                    0.3253  classical_biharmonic+net
+        14  18x26                    0.0975                    0.2859                    0.2997                    0.3795                    0.3844                    0.3018  classical_biharmonic+net
+        20    6x8                    0.0889                    0.3585                    0.4587                    0.5286                    0.5583                    0.4605  classical_biharmonic+net
+        20  10x14                    0.3094                    0.4351                    0.4804                    0.4678                    0.4867                    0.4825  classical_biharmonic+net
+        20  14x20                    0.1694                    0.4147                    0.3203                    0.4667                    0.4736                    0.3238  classical_biharmonic+net
+        20  18x26                    0.0975                    0.2891                    0.2979                    0.3796                    0.3845                    0.3001  classical_biharmonic+net
+        25    6x8                    0.0889                    0.3439                    0.4598                    0.5290                    0.5582                    0.4617  classical_biharmonic+net
+        25  10x14                    0.3094                    0.4363                    0.4834                    0.4677                    0.4866                    0.4855  classical_biharmonic+net
+        25  14x20                    0.1694                    0.4191                    0.3188                    0.4667                    0.4732                    0.3224  classical_biharmonic+net
+        25  18x26                    0.0975                    0.2895                    0.2961                    0.3796                    0.3846                    0.2984  classical_biharmonic+net
+
+[footprint, dose 1, mean r over seeds and all 8 lines]
+     angle   hole                       det                       net                ens_jitter      classical_biharmonic  classical_biharmonic+net            adaptive_blend                      best
+         8    0x0                    0.9773                    0.9847                    0.9837                    0.9773                    0.9847                    0.9837                       net
+         8    6x8                    0.9443                    0.9799                    0.9806                    0.9747                    0.9822                    0.9807  classical_biharmonic+net
+         8  10x14                    0.8827                    0.9546                    0.9681                    0.9589                    0.9670                    0.9681            adaptive_blend
+         8  14x20                    0.7814                    0.9479                    0.9521                    0.9329                    0.9413                    0.9522            adaptive_blend
+         8  18x26                    0.6648                    0.9172                    0.9089                    0.9076                    0.9154                    0.9090                       net
+        14    0x0                    0.9773                    0.9848                    0.9837                    0.9773                    0.9848                    0.9837                       net
+        14    6x8                    0.9443                    0.9797                    0.9807                    0.9747                    0.9823                    0.9807  classical_biharmonic+net
+        14  10x14                    0.8827                    0.9548                    0.9678                    0.9590                    0.9670                    0.9678            adaptive_blend
+        14  14x20                    0.7814                    0.9482                    0.9524                    0.9330                    0.9413                    0.9524            adaptive_blend
+        14  18x26                    0.6648                    0.9184                    0.9102                    0.9076                    0.9154                    0.9104                       net
+        20    0x0                    0.9773                    0.9848                    0.9837                    0.9773                    0.9848                    0.9837                       net
+        20    6x8                    0.9443                    0.9796                    0.9807                    0.9748                    0.9823                    0.9808  classical_biharmonic+net
+        20  10x14                    0.8827                    0.9550                    0.9677                    0.9590                    0.9670                    0.9677            adaptive_blend
+        20  14x20                    0.7814                    0.9483                    0.9525                    0.9330                    0.9413                    0.9525            adaptive_blend
+        20  18x26                    0.6648                    0.9191                    0.9106                    0.9077                    0.9155                    0.9108                       net
+        25    0x0                    0.9774                    0.9848                    0.9837                    0.9774                    0.9848                    0.9837                       net
+        25    6x8                    0.9444                    0.9795                    0.9807                    0.9748                    0.9823                    0.9807  classical_biharmonic+net
+        25  10x14                    0.8828                    0.9551                    0.9677                    0.9590                    0.9670                    0.9677            adaptive_blend
+        25  14x20                    0.7814                    0.9483                    0.9525                    0.9330                    0.9413                    0.9525            adaptive_blend
+        25  18x26                    0.6648                    0.9193                    0.9104                    0.9077                    0.9155                    0.9106                       net
+
+[verdict: adaptive_blend vs the fixed hybrid classical_biharmonic+net]
+  hole: adaptive_blend beats the fixed hybrid in 0/16 cells (dose 1); mean r adaptive_blend 0.3909 vs hybrid 0.4758 (delta -0.0850)
+  footprint: adaptive_blend beats the fixed hybrid in 8/20 cells (dose 1); mean r adaptive_blend 0.9590 vs hybrid 0.9582 (delta +0.0008)
+
+[verdict: adaptive_blend vs plain ens_jitter and vs classical_biharmonic alone, hole region, dose 1]
+  vs ens_jitter: adaptive_blend wins 16/16 cells; mean r adaptive_blend 0.3909 vs ens_jitter 0.3885 (delta +0.0023)
+  vs classical_biharmonic: adaptive_blend wins 4/16 cells; mean r adaptive_blend 0.3909 vs classical_biharmonic 0.4606 (delta -0.0697)
+
+[dose effect: mean r over angles, seeds, 8 lines; hole 14x20 / footprint 0x0]
+  dose 1: det 0.169/0.977  net 0.410/0.985  ens_jitter 0.321/0.984  classical_biharmonic 0.467/0.977  classical_biharmonic+net 0.474/0.985  adaptive_blend 0.324/0.984
+  dose 0.5: det 0.169/0.973  net 0.272/0.979  ens_jitter 0.203/0.979  classical_biharmonic 0.463/0.973  classical_biharmonic+net 0.465/0.979  adaptive_blend 0.204/0.979
+  dose 0.25: det 0.169/0.964  net 0.030/0.968  ens_jitter -0.007/0.969  classical_biharmonic 0.455/0.964  classical_biharmonic+net 0.456/0.968  adaptive_blend -0.007/0.969
+
+[REAL anchor: ruotato vs prova2, footprint, mean r (cv_ratio)]
+    det                        0.9526 (0.947)
+    net                        0.9485 (0.989)
+    ens_jitter                 0.9527 (0.979)
+    classical_biharmonic       0.9526 (0.947)
+    classical_biharmonic+net   0.9485 (0.989)
+    adaptive_blend             0.9527 (0.979)
