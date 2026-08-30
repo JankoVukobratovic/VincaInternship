@@ -1,4 +1,4 @@
-# Raw scan data (large, tens of thousands of MCA files) — distributed
+# Raw scan data (large, tens of thousands of MCA files) - distributed
 # separately (see README: Setup). Covers both accepted layouts:
 # under Resources/ and dropped directly into the repo root.
 /Resources/
@@ -9,7 +9,7 @@
 /models/
 *.pth
 *.pt
-# ...except the small (6.7 MB) trained U-Net — hard to reproduce exactly
+# ...except the small (6.7 MB) trained U-Net - hard to reproduce exactly
 # (stochastic training), required by 05_full_pipeline.py:
 !xrf-denoise/experiments/A_scratch/checkpoints/best_model.pt
 
