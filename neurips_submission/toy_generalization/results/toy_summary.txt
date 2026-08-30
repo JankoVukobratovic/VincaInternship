@@ -1,0 +1,70 @@
+Toy generalization check: synthetic, non-X-ray, non-painting sanity test
+==============================================================================
+
+PURPOSE
+------------------------------------------------------------------------------
+This is a fully synthetic, self-contained re-run of the same four-part
+recipe (jitter-vs-control deep ensembles, a blind diagnostic battery, and
+rejection ABC) used in the main pipeline, but on an unrelated toy problem:
+32x32 fields made of random 2D Gaussian blobs plus smooth low-frequency
+noise, degraded by a made-up 3-knob forward model (multiplicative gain,
+sub-pixel warp shift, Poisson-like noise level). No real instrument or
+painting data is used anywhere in this script.
+
+SYNTHETIC CALIBRATION SIGMAS USED (arbitrary, chosen by the author, not
+measured from any real instrument):
+  gain_scale:  multiplicative, nominal 1.0, log-sd 0.100
+  warp_shift:  (dy,dx) pixels, nominal (0,0), sd 0.150 px/axis
+  noise_scale: multiplicative on Var = noise_scale * 0.08 * clip(signal,0,None),
+               nominal 1.0, log-sd 0.200
+
+STEP (b): HELD-OUT ENSEMBLE SPREAD AND CALIBRATION
+------------------------------------------------------------------------------
+held-out fields evaluated: 12
+ensemble size (each of jitter / control): 6
+rms std, jitter ensemble : 0.11261
+rms std, control ensemble: 0.01422
+spread ratio (jitter/control): 7.920
+coverage at z=1 (target ~0.683 if Gaussian and correctly scaled):
+    jitter ensemble : 0.535
+    control ensemble: 0.194
+coverage at z=2 (target ~0.954 if Gaussian and correctly scaled):
+    jitter ensemble : 0.826
+    control ensemble: 0.328
+
+STEP (c): BLIND DIAGNOSTIC BATTERY
+------------------------------------------------------------------------------
+null distribution built from 400 pairs, BOTH sides simulated with
+knobs independently drawn within calibration uncertainty of nominal (never
+a noise-free vs noisy comparison):
+    level_ratio    mean=1.0229  std=0.1443
+    shift_offset   mean=0.2413  std=0.1436
+    noise_ratio    mean=1.0748  std=0.3975
+defect-naming trials: 18 (cycling gain / warp / noise, one large
+out-of-calibration defect injected per trial: gain_scale=2.5, warp_shift=
+(1.5,1.5) px, or noise_scale=6.0)
+confusion matrix (rows = true defect family, cols = diagnosed family):
+  true\diag     gain    warp   noise    none
+  gain             6       0       0       0
+  warp             0       6       0       0
+  noise            0       0       6       0
+overall defect-naming accuracy: 18/18 = 1.000
+
+STEP (d): REJECTION ABC GROUND-TRUTH RECOVERY (SBC-STYLE)
+------------------------------------------------------------------------------
+trials: 15, prior draws/trial: 800, accept fraction: 10%
+true knob vectors drawn from the same calibration-jitter prior used to
+train the jitter ensemble; distance = whitened RMS-z over the 3 blind
+diagnostic statistics, using the null model from step (c).
+pooled normalized rank of true value within accepted posterior draws
+(n=60 = 15 trials x 4 knob dimensions):
+    mean = 0.513  (0.5 = calibrated if uniform)
+    mean rank, gain_scale  : 0.660
+    mean rank, warp_dy     : 0.448
+    mean rank, warp_dx     : 0.468
+    mean rank, noise_scale : 0.475
+
+FILES
+------------------------------------------------------------------------------
+toy_summary.png : example field/observation, coverage bars, rank histogram
+toy_summary.txt : this file
