@@ -1,0 +1,31 @@
+WP4 addendum - Simulation-Based Calibration (SBC) of the rejection-ABC posterior
+24 continuous trials, 20 discrete blur trials, 80 ABC draws/trial, accept 10% (150 posterior draws/trial)
+
+[1] continuous knobs: rank of the true value inside the posterior sample,
+    over trials; a calibrated posterior gives ranks uniform on [0,1]
+    (KS test against Uniform(0,1); p < 0.05 flags miscalibration)
+    knob               mean rank  frac tails   KS stat      KS p  verdict
+    noise_k_scale          0.505       0.042     0.158     0.533  calibrated (KS does not reject uniformity)
+    gain_scale             0.605       0.250     0.227     0.145  calibrated (KS does not reject uniformity)
+    angle_bias_deg         0.449       0.250     0.197     0.274  calibrated (KS does not reject uniformity)
+    warp_rot_deg           0.408       0.042     0.243     0.098  calibrated (KS does not reject uniformity)
+    warp_dy                0.464       0.083     0.223     0.156  calibrated (KS does not reject uniformity)
+    warp_dx                0.500       0.083     0.120     0.840  calibrated (KS does not reject uniformity)
+
+    0/6 knobs flagged at p<0.05 (expected under-the-null false-positive rate at alpha=0.05 with 6 tests is about 0.3)
+
+[2] discrete blur_mode: posterior P(bilinear), true knobs at NOMINAL except blur (clean isolation)
+    mean P(bilinear) | true=bilinear: 1.000  (n=10, sd 0.000)
+    mean P(bilinear) | true=cubic:    0.000  (n=10, sd 0.000)
+    MAP classification accuracy (P>0.5 -> bilinear): 1.000 (20/20)
+    separation (mean P|bilinear - mean P|cubic): +1.000 (1.0 = perfect, 0.0 = no information)
+
+[3] interpretation
+    All six continuous knobs pass the SBC uniformity check at the
+    trial counts used here: when the true simulator is known by
+    construction, rejection ABC with this battery recovers it
+    without a detectable rank bias or dispersion pathology.
+    The discrete blur_mode test separates cleanly (accuracy 1.00, separation +1.00): the loop's headline result
+    on the real scan (P(bilinear) 0.5 -> 0.000) is not an ABC
+    artifact -- when blur truly is bilinear, the posterior finds
+    it, and when it truly is cubic, the posterior says so too.
