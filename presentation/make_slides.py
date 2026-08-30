@@ -41,51 +41,75 @@ SW, SH = Inches(13.333), Inches(7.5)
 # ---------------------------------------------------------------------------
 # geometry schematic (side view) for the idea slide
 # ---------------------------------------------------------------------------
-def make_schematic(path):
-    fig, ax = plt.subplots(figsize=(6.2, 4.6))
+def make_schematic(path, scale=1.0, figsize=(6.2, 4.6), dpi=300,
+                   det_angle_deg=45.0, beam_x0=-3.4, xlim=(-3.8, 1.6),
+                   ylim=(-2.5, 2.5), labels=("SDD 10264", "SDD 19511"),
+                   psi_labels=("\N{GREEK SMALL LETTER PSI}\N{SUBSCRIPT ONE}",
+                               "\N{GREEK SMALL LETTER PSI}\N{SUBSCRIPT TWO}"),
+                   theta_label="\N{GREEK SMALL LETTER THETA}"):
+    """Side-view schematic of the two-detector / tilt geometry.
+
+    ``scale`` multiplies every font size and line width; ``figsize`` and
+    ``dpi`` set the output size.  The defaults reproduce the talk figure
+    unchanged -- scripts/18_poster_figures.py calls this with a larger
+    canvas and scale so the labels stay legible at A0.
+
+    ``det_angle_deg``, ``beam_x0``, ``xlim`` and ``ylim`` shape the drawing.
+    The axes are aspect-equal, so with ``bbox_inches="tight"`` the emitted
+    aspect ratio is set by the content extent: a shallower detector angle
+    and a longer beam make the figure wider and shorter, which is what the
+    A0 poster needs to fit a full-column figure into its height budget.
+    ``labels`` names the upper and lower head; the poster uses plain
+    "upper head" / "lower head" so the text can say R = upper / lower.
+    ``psi_labels`` and ``theta_label`` are the angle labels; the defaults are
+    Unicode, which the talk font has and Latin Modern Roman does not (no
+    Greek, no subscript digits), so the poster passes mathtext instead.
+    Defaults reproduce the talk figure unchanged.
+    """
+    fig, ax = plt.subplots(figsize=figsize)
     c_blue, c_orange, c_gray = "#1f77b4", "#d95f02", "#555555"
 
     # canvas, frontal (solid) and tilted forward (dashed, exaggerated,
     # rotated about its centre)
-    ax.plot([0, 0], [-1.6, 1.6], color=c_gray, lw=5,
+    ax.plot([0, 0], [-1.6, 1.6], color=c_gray, lw=5 * scale,
             solid_capstyle="round")
     th = np.radians(14)
     ex, ey = 1.6 * np.sin(th), 1.6 * np.cos(th)
-    ax.plot([ex, -ex], [-ey, ey], color=c_orange, lw=3, ls="--")
-    ax.text(0.14, 1.42, "canvas", fontsize=11, color=c_gray)
-    ax.text(0.52, -1.62, "tilted (~8\N{DEGREE SIGN})", fontsize=11,
+    ax.plot([ex, -ex], [-ey, ey], color=c_orange, lw=3 * scale, ls="--")
+    ax.text(0.14, 1.42, "canvas", fontsize=11 * scale, color=c_gray)
+    ax.text(0.52, -1.62, "tilted (~8\N{DEGREE SIGN})", fontsize=11 * scale,
             color=c_orange, ha="left")
-    ax.text(-0.52, 1.74, "\N{GREEK SMALL LETTER THETA}", fontsize=13,
-            color=c_orange)
+    ax.text(-0.52, 1.74, theta_label, fontsize=13 * scale, color=c_orange)
 
     # X-ray beam along the surface normal
-    ax.annotate("", xy=(-0.06, 0), xytext=(-3.4, 0),
-                arrowprops=dict(arrowstyle="-|>", color="#333333", lw=2))
-    ax.text(-3.35, 0.13, "X-ray beam", fontsize=11, color="#333333")
+    ax.annotate("", xy=(-0.06, 0), xytext=(beam_x0, 0),
+                arrowprops=dict(arrowstyle="-|>", color="#333333",
+                                lw=2 * scale))
+    ax.text(beam_x0 + 0.05, 0.13, "X-ray beam", fontsize=11 * scale,
+            color="#333333")
 
     # two SDDs, symmetric about the beam
-    for sgn, name in ((1, "SDD 10264"), (-1, "SDD 19511")):
-        dx = -2.3 * np.cos(np.radians(45))
-        dy = sgn * 2.3 * np.sin(np.radians(45))
+    for sgn, name in ((1, labels[0]), (-1, labels[1])):
+        dx = -2.3 * np.cos(np.radians(det_angle_deg))
+        dy = sgn * 2.3 * np.sin(np.radians(det_angle_deg))
         ax.annotate("", xy=(dx, dy), xytext=(0, 0),
                     arrowprops=dict(arrowstyle="-|>", color=c_blue,
-                                    lw=1.8))
+                                    lw=1.8 * scale))
         ax.add_patch(plt.Rectangle((dx - 0.34, dy - 0.17 + sgn * 0.17),
                                    0.68, 0.34, facecolor=c_blue,
                                    edgecolor="none"))
-        ax.text(dx, dy + sgn * 0.56, name, fontsize=10.5, color=c_blue,
-                ha="center", va="center")
+        ax.text(dx, dy + sgn * 0.56, name, fontsize=10.5 * scale,
+                color=c_blue, ha="center", va="center")
         ax.text(0.55 * dx, 0.62 * dy,
-                "\N{GREEK SMALL LETTER PSI}\N{SUBSCRIPT ONE}" if sgn > 0
-                else "\N{GREEK SMALL LETTER PSI}\N{SUBSCRIPT TWO}",
-                fontsize=12, color=c_blue)
+                psi_labels[0] if sgn > 0 else psi_labels[1],
+                fontsize=12 * scale, color=c_blue)
 
-    ax.set_xlim(-3.8, 1.6)
-    ax.set_ylim(-2.5, 2.5)
+    ax.set_xlim(*xlim)
+    ax.set_ylim(*ylim)
     ax.set_aspect("equal")
     ax.axis("off")
     fig.tight_layout()
-    fig.savefig(path, dpi=300, bbox_inches="tight")
+    fig.savefig(path, dpi=dpi, bbox_inches="tight")
     plt.close(fig)
 
 
@@ -362,7 +386,12 @@ if __name__ == "__main__":
               "is that thick. It corresponds to 15-20 cm of air, so "
               "one detector must sit further away or behind a "
               "collimator. We learned that about the hardware without "
-              "opening it.")
+              "opening it. Manufacturer specs since received "
+              "(X-123SDD family): nominal window 8-12.5 um Be and "
+              "500 um Si - the fitted reference matches the factory "
+              "value; snout extenders up to 9 in exist, so a "
+              "long-extender mounting of 19511 is the concrete "
+              "candidate. Per-unit configuration still pending.")
 
     # ---- 7 stage 2 ----------------------------------------------------
     s = blank_slide(prs)
@@ -551,7 +580,10 @@ if __name__ == "__main__":
               "up: the abstract promised per-detector angles; with "
               "one tilt only the response is identifiable, and the "
               "per-detector values need the nominal head geometry "
-              "from the instrument builder.")
+              "from the instrument builder. Status: the builder sent "
+              "tube settings (40 kV, 50 uA), 2 cm working distance "
+              "and a spec sheet - but for s/n 10791, not our units; "
+              "per-detector mounting is still requested.")
 
     out = os.path.join(OUTDIR, "dual_detector_talk.pptx")
     prs.save(out)
