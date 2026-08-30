@@ -58,6 +58,13 @@ class SimKnobs:
                                       # (WP4 round-2 knob: the PPC of round 1
                                       # showed the residual noise misfit is
                                       # line-dependent), ELEMENTS order
+    flatfield_strength: float = 0.0  # coefficient of a fixed radial gain
+                                      # field over the tilted frame (WP4
+                                      # round-3 knob: forward_model.py's own
+                                      # docstring lists "the flat-field of
+                                      # the detector ratio (per-pixel gain
+                                      # structure)" as NOT modelled; this is
+                                      # its minimal one-parameter version)
     fresh_frac: float = dg.FRESH_FRAC
     label: str = "nominal"
 
@@ -71,6 +78,23 @@ class SimKnobs:
 
 
 NOMINAL = SimKnobs()
+
+_FLATFIELD = None
+
+
+def flatfield_radial() -> np.ndarray:
+    """Fixed centered radial field over the tilted frame, mean 0, O(1)
+    range: (r/r_max)**2 - mean((r/r_max)**2), the minimal parametrisation
+    of an unmodelled vignetting-style flat-field."""
+    global _FLATFIELD
+    if _FLATFIELD is None:
+        h, w = core.TILTED_SHAPE
+        yy, xx = np.meshgrid(np.arange(h), np.arange(w), indexing="ij")
+        cy, cx = (h - 1) / 2.0, (w - 1) / 2.0
+        r = np.sqrt(((yy - cy) / cy) ** 2 + ((xx - cx) / cx) ** 2)
+        f = (r / r.max()) ** 2
+        _FLATFIELD = f - f.mean()
+    return _FLATFIELD
 
 
 def forward_perturbed(maps_f: dict, angle_deg: float, rng,
@@ -104,12 +128,19 @@ def forward_perturbed(maps_f: dict, angle_deg: float, rng,
         off = (knobs.gain_pct_offset[ELEMENTS.index(el)] / 100.0
                * (belief / fm.REF_ANGLE_DEG))
         g = 1.0 + knobs.gain_scale * (gains[el] - 1.0 + off)
+        if knobs.flatfield_strength:
+            # unmodelled per-pixel flat-field (forward_model.py docstring,
+            # "What the simulator does NOT model"), minimal version: a
+            # fixed radial multiplicative field over the tilted frame
+            g = g * (1.0 + knobs.flatfield_strength * flatfield_radial())
         T = map_coordinates(np.asarray(m, dtype=float), [yf, xf],
                             order=order, mode="nearest") * g
+        one_minus_g = (np.clip(1.0 - g, 0.0, None)
+                       if isinstance(g, np.ndarray) else max(1.0 - g, 0.0))
         var = (knobs.noise_k_scale
                * knobs.noise_k_line_scale[ELEMENTS.index(el)]
                * ks[el] * np.clip(T, 0.0, None)
-               * (max(1.0 - g, 0.0) + knobs.fresh_frac))
+               * (one_minus_g + knobs.fresh_frac))
         T = T + rng.normal(size=T.shape) * np.sqrt(var)
         out[el] = np.clip(T, 0.0, None)
     return out
@@ -194,6 +225,9 @@ def jittered(rng: np.random.Generator, spec: dict,
     nl = tuple(float(v) for v in np.exp(
         rng.normal(0.0, line_sd, len(ELEMENTS)))) if line_sd > 0 \
         else (1.0,) * len(ELEMENTS)
+    ff_sd = spec.get("flatfield_strength_sd", 0.0)
+    ff = float(rng.normal(0.0, ff_sd)) if ff_sd > 0 else 0.0
     return SimKnobs(noise_k_scale=nk, gain_scale=gs, angle_bias_deg=ab,
                     warp_shift_px=ws, warp_rot_deg=wr, gain_pct_offset=go,
-                    noise_k_line_scale=nl, label=label)
+                    noise_k_line_scale=nl, flatfield_strength=ff,
+                    label=label)

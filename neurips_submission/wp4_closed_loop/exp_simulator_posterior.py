@@ -74,7 +74,7 @@ ACCEPT = 0.05
 ACCEPT_SENS = (0.02, 0.05, 0.10)
 N_MEMBERS = config.ENSEMBLE_N
 KNOB_COLS = ("noise_k_scale", "gain_scale", "angle_bias_deg", "warp_rot_deg",
-             "warp_dy", "warp_dx", "blur_bilinear")
+             "warp_dy", "warp_dx", "blur_bilinear", "flatfield_strength")
 _QUICK = False
 
 
@@ -103,7 +103,8 @@ def knobs_to_row(k: perturb.SimKnobs) -> dict:
     r = {"noise_k_scale": k.noise_k_scale, "gain_scale": k.gain_scale,
          "angle_bias_deg": k.angle_bias_deg, "warp_rot_deg": k.warp_rot_deg,
          "warp_dy": k.warp_shift_px[0], "warp_dx": k.warp_shift_px[1],
-         "blur_bilinear": 1 if k.blur_mode == "bilinear" else 0}
+         "blur_bilinear": 1 if k.blur_mode == "bilinear" else 0,
+         "flatfield_strength": k.flatfield_strength}
     for el, v in zip(ELEMENTS, k.gain_pct_offset):
         r[f"gain_off_{el}"] = v
     for el, v in zip(ELEMENTS, k.noise_k_line_scale):
@@ -123,6 +124,7 @@ def row_to_knobs(r: dict, label="posterior") -> perturb.SimKnobs:
         gain_pct_offset=tuple(float(r[f"gain_off_{el}"]) for el in ELEMENTS),
         noise_k_line_scale=tuple(float(r.get(f"nkline_{el}", 1.0))
                                  for el in ELEMENTS),
+        flatfield_strength=float(r.get("flatfield_strength", 0.0)),
         label=label)
 
 
@@ -138,6 +140,15 @@ def prior_draw(rng, i, spec=None) -> perturb.SimKnobs:
 # measured per-line variance ratios 0.9 to 4.6, MVP-2 check [3]).
 ROUND2_SPEC = dict(config.JITTER, noise_k_line_log_sd=0.6)
 
+# round-3 prior: round 2 still rejects every draw; the one component
+# forward_model.py's own docstring names as unmodelled and not yet
+# tried is the per-pixel flat-field ("What the simulator does NOT
+# model: the flat-field of the detector ratio"). 5% radial vignetting
+# sd is a ROUND-NUMBER PLACEHOLDER, not a measured quantity like the
+# round-1 sigmas: no independent flat-field calibration exists for
+# this instrument, so this is a plausible-magnitude guess only.
+ROUND3_SPEC = dict(ROUND2_SPEC, flatfield_strength_sd=0.05)
+
 
 # ---------------------------------------------------------------------------
 # 1. ABC
@@ -150,7 +161,8 @@ def real_null(n_null):
                     for j in range(n_null)], ANGLE)
 
 
-def run_abc(quick=False, spec=None, suffix="", update_members=True):
+def run_abc(quick=False, spec=None, suffix="", update_members=True,
+           ppc_label=None):
     n = N_DRAWS_QUICK if quick else N_DRAWS
     n_null = 8 if quick else dg.N_NULL
     p1 = core.fm.load_summed_maps("prova1")
@@ -222,21 +234,24 @@ def run_abc(quick=False, spec=None, suffix="", update_members=True):
         posterior_knobs(force=True)
         ppc(null)
     else:
-        ppc_r2(rows, null, spec, suffix)
+        ppc_extra(rows, null, spec, suffix, ppc_label or suffix.lstrip("_"))
 
 
-def ppc_r2(rows, null, spec, suffix):
+def ppc_extra(rows, null, spec, suffix, label):
     """PPC for a re-run ABC that must NOT touch the trained ensemble's
-    members.json: posterior draws sampled from the fresh accepted set."""
+    members.json: posterior draws sampled from the fresh accepted set.
+    `label` names this round (e.g. "r2", "r3") in the set names and the
+    output CSV suffix."""
     p1 = core.fm.load_summed_maps("prova1")
     ruo = core.fm.load_summed_maps("ruotato")
     acc = [r for r in rows if r.get("draw", -1) >= 0
            and r[f"acc_{int(ACCEPT * 100)}"]]
     rng = np.random.default_rng(config.BASE_SEED + 78)
     idx = rng.choice(len(acc), min(12, len(acc)), replace=False)
-    sets = {"posterior_r2": [row_to_knobs(acc[i], f"post2_{i}") for i in idx]}
+    sets = {f"posterior_{label}": [row_to_knobs(acc[i], f"post_{label}_{i}")
+                                   for i in idx]}
     rng2 = np.random.default_rng(config.BASE_SEED + 4242)
-    sets["prior_r2"] = [prior_draw(rng2, i, spec) for i in range(12)]
+    sets[f"prior_{label}"] = [prior_draw(rng2, i, spec) for i in range(12)]
     sets["nominal"] = [perturb.NOMINAL]
     out = []
     for kind, ks in sets.items():
@@ -549,7 +564,7 @@ def make_figures():
     accepted = [r for r in draws if int(r[f"acc_{int(ACCEPT * 100)}"])]
     have_eval = bool(cov)
     fig, axes = plt.subplots(2 if have_eval else 1, 4,
-                             figsize=(8.8, 3.3 if have_eval else 2.0))
+                             figsize=(8.8, 2.95 if have_eval else 2.0))
     axes = np.atleast_2d(axes)
     for j, (key, title) in enumerate(knobs):
         ax = axes[0, j]
@@ -666,6 +681,10 @@ if __name__ == "__main__":
                     help="round 2: prior extended with per-line noise "
                          "multipliers; writes *_r2 CSVs, does not touch "
                          "the trained ensemble")
+    ap.add_argument("--abc3", action="store_true",
+                    help="round 3: prior extended with a flat-field knob "
+                         "on top of round 2; writes *_r3 CSVs, does not "
+                         "touch the trained ensemble")
     ap.add_argument("--ppc", action="store_true")
     ap.add_argument("--train-only", action="store_true")
     ap.add_argument("--members", default=None)
@@ -682,6 +701,9 @@ if __name__ == "__main__":
         run_abc(args.quick)
     elif args.abc2:
         run_abc(args.quick, spec=ROUND2_SPEC, suffix="_r2",
+                update_members=False)
+    elif args.abc3:
+        run_abc(args.quick, spec=ROUND3_SPEC, suffix="_r3",
                 update_members=False)
     elif args.ppc:
         ppc()
