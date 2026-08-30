@@ -1,4 +1,4 @@
-# Draft — Results (dual-detector paper)
+# Draft - Results (dual-detector paper)
 
 Working text for the Results section, in paper order. Numbers come
 from `results/detector_diff/` (scripts 07, 07b) computed on the
@@ -25,15 +25,23 @@ on which detector is read out.
 
 ## Detector model
 
-A three-parameter detector model — an energy-independent factor, a
+A three-parameter detector model - an energy-independent factor, a
 differential low-energy absorber (Be-equivalent), and the ratio of
-active Si thicknesses — reproduces the frontal ratio curve across two
+active Si thicknesses - reproduces the frontal ratio curve across two
 orders of magnitude (Fig. X, left). The fitted absorber is
-973 +- 2 um Be-equivalent, i.e. 40-100x a typical SDD entrance
-window. The low-energy imbalance therefore cannot be a window
-difference: it corresponds to roughly 15-20 cm of extra air path (or
-equivalent collimation) in front of detector 19511. [TODO: confirm
-nominal head geometry with the instrument builder.]
+973 +- 2 um Be-equivalent. The manufacturer's nominal window for this family is
+8-12.5 um Be and the nominal silicon 500 um - so the fixed reference
+thickness of the fit is the factory value, and the fitted absorber is
+some 80-120x any real window. The low-energy imbalance therefore
+cannot be a window difference: it corresponds to a substantial extra
+air path or equivalent collimation/filtering in front of detector
+19511. The X-123SDD itself ships with snout extenders up to 9 in
+(23 cm), so a long-extender mounting of one unit is a concrete
+candidate consistent with the inferred path; the nominal 2 cm working
+distance of the head makes an in-beam air gap of this size otherwise
+implausible. [TODO: per-detector mounting (extender length, distance,
+take-off angle, filters) from the instrument builder - the spec sheet
+received covers a different unit (10791).]
 
 ## Tilt-induced shift and geometric model
 
@@ -55,7 +63,7 @@ energy scale Ec = 3.55 +- 0.48 keV, and a solid-angle offset of
 full-frame version (chi2/dof 19.1/5 against 48.3/5). A nonparametric
 Gaussian-process regression of the same data reproduces the shape
 independently, and the parametric curve stays within 1.1 sigma of the
-GP mean over the whole energy range — the shape is a property of the
+GP mean over the whole energy range - the shape is a property of the
 data, not of the model choice.
 
 ## Tilt angle from foreshortening
@@ -91,6 +99,15 @@ timestamp and cannot confirm it. That interval matters only as the
 timescale over which the repeatability floor below was accumulated. The frontal pair fixes the
 repeatability of everything reported below; the tilted scan supplies the
 geometry contrast.
+
+The scanner head is built on Amptek X-123SDD spectrometer units
+(25 mm2 SDD, nominal 500 um silicon, 8-12.5 um Be window, multilayer
+W/Cr/Ti/Al internal collimator; snout extenders from none to 9 in are
+factory options). Operating point for these scans: 40 kV, 50 uA (Rh
+anode), nominal head-to-painting distance 2 cm [manufacturer, private
+communication; the provided spec sheet references s/n 10791, a unit of
+the same family but not one of the two detectors used here - the
+per-unit configuration of 10264 and 19511 is still pending].
 
 Eight emission lines carry the analysis: Ca Ka, Ti Ka, Fe Ka, Cu Ka and
 the four Pb L lines. K and Zn are excluded throughout (overlapping lines

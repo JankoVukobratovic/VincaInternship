@@ -5,7 +5,7 @@
 
 ---
 
-## Slide 1 — Title
+## Slide 1 - Title
 - **Title** (as in paper)
 - Authors + affiliations (ETF Belgrade, Ars Mensurae, IDArtScience, VINARH/Vinča)
 - Conference name, date
@@ -13,20 +13,20 @@
 
 ---
 
-## Slide 2 — Motivation
+## Slide 2 - Motivation
 **Headline:** *Why automate conservation risk assessment?*
 
 **Bullets:**
-- Historical canvas paintings degrade silently — damage often invisible until irreversible
+- Historical canvas paintings degrade silently - damage often invisible until irreversible
 - Traditional assessment: expert-driven, time-consuming, qualitative
-- XRF scanning gives us per-pixel elemental data across the entire surface — but interpreting 7,200 spectra by hand is impractical
-- **Goal:** Build an automated, label-free pipeline that turns raw XRF spectra into a conservation-prioritization map — under 70 seconds, no expert annotation required
+- XRF scanning gives us per-pixel elemental data across the entire surface - but interpreting 7,200 spectra by hand is impractical
+- **Goal:** Build an automated, label-free pipeline that turns raw XRF spectra into a conservation-prioritization map - under 70 seconds, no expert annotation required
 
 **Visual idea:** Side-by-side: conservator manually examining a painting vs. a heatmap of chemical risk zones
 
 ---
 
-## Slide 3 — Pipeline Overview
+## Slide 3 - Pipeline Overview
 **Headline:** *Five stages, one automated workflow*
 
 **Diagram (linear flow with 5 boxes):**
@@ -39,7 +39,7 @@ Raw XRF Spectra
       ↓
 [3] NMF Decomposition (corroboration only)
       ↓
-[4] Chemical Vulnerability Index (CVI) — literature-grounded rules
+[4] Chemical Vulnerability Index (CVI) - literature-grounded rules
       ↓
 [5] SAM Region Segmentation → per-region risk summary
 ```
@@ -50,7 +50,7 @@ Raw XRF Spectra
 
 ---
 
-## Slide 4 — Spectral Analysis
+## Slide 4 - Spectral Analysis
 **Headline:** *From noisy counts to clean element maps*
 
 **Two sub-points:**
@@ -63,16 +63,16 @@ Raw XRF Spectra
 **4b. Elemental Extraction**
 - 5-point linear energy calibration (R² > 0.9999)
 - ROI integration with linear background subtraction
-- Spectral overlap corrections: Cu Kβ/Kα ratio for Zn, Pb/As regression (ΔE = 0.007 keV — below detector FWHM)
+- Spectral overlap corrections: Cu Kβ/Kα ratio for Zn, Pb/As regression (ΔE = 0.007 keV - below detector FWHM)
 - Output: 2D spatial maps for Ca, Ti, Fe, Cu, Pb Lα, Pb Lβ
 
-**Visual:** fig_element_maps.pdf — the 5 element spatial maps
+**Visual:** fig_element_maps.pdf - the 5 element spatial maps
 
 **Bonus bullet:** NMF (K=5) independently recovers the same 5 material groups → cross-validates physics-based extraction (reconstruction error < 5%)
 
 ---
 
-## Slide 5 — How Do We Measure Risk? (CVI)
+## Slide 5 - How Do We Measure Risk? (CVI)
 **Headline:** *Literature-grounded Chemical Vulnerability Index*
 
 **Formula (display equation):**
@@ -80,7 +80,7 @@ Raw XRF Spectra
 CVI(i,j) = max_k { w_k · √(A_k(i,j) · B_k(i,j)) }
 ```
 
-**Rules table (compact — all 5 rows):**
+**Rules table (compact - all 5 rows):**
 
 | ID | Mechanism | Elements | w |
 |----|-----------|----------|---|
@@ -92,13 +92,13 @@ CVI(i,j) = max_k { w_k · √(A_k(i,j) · B_k(i,j)) }
 
 **Key design choices to say out loud:**
 - Geometric mean → high score ONLY when BOTH incompatible elements co-occur
-- Weights encode conservation priority (irreversibility, propagation speed, visual impact) — not fitted, not arbitrary
-- Four zones: Low / Moderate / Elevated / Critical (< 0.25 / 0.25–0.50 / 0.50–0.75 / ≥ 0.75) — aligns with conservator action taxonomy
+- Weights encode conservation priority (irreversibility, propagation speed, visual impact) - not fitted, not arbitrary
+- Four zones: Low / Moderate / Elevated / Critical (< 0.25 / 0.25–0.50 / 0.50–0.75 / ≥ 0.75) - aligns with conservator action taxonomy
 - Sensitivity: ±15% weight perturbation → <8% change in mean CVI, top-decile ranking preserved in >92% of pixels
 
 ---
 
-## Slide 6 — Results
+## Slide 6 - Results
 **Headline:** *Stable, reproducible, actionable risk maps*
 
 **Three columns or three sub-bullets:**
@@ -119,7 +119,7 @@ CVI(i,j) = max_k { w_k · √(A_k(i,j) · B_k(i,j)) }
 - R2 (Cu degradation) elevated on ~22% of pixels; R3 (Pb darkening) on ~19%
 - R5 (Fe/Pb oxidation) traces figural contours
 
-**③ SAM Segmentation — 13 regions**
+**③ SAM Segmentation - 13 regions**
 - Pb-dominated segment: max CVI 0.93, mean 0.54 → urgent (R3)
 - Cu-dominated segment: max CVI 0.97, mean 0.45 → monitor (R2)
 - Ti/Cu overlap segment: mean CVI ~0.45 → moisture entrapment (R4)
@@ -129,12 +129,12 @@ OR fig_sam_segmentation.pdf side by side with CVI map
 
 ---
 
-## Slide 7 — Further Work
+## Slide 7 - Further Work
 **Headline:** *What comes next*
 
 **Bullets:**
 - Validate CVI against expert conservator assessments on real paintings with known degradation outcomes (current validation is internal consistency on one mockup)
-- Extend to real paintings with documented conservation histories — may require adapted rule weights
+- Extend to real paintings with documented conservation histories - may require adapted rule weights
 - Integrate NMF abundance maps as CVI inputs to capture material mixtures invisible to single-element thresholds
 - Resolve As Kα / Pb Lα overlap (ΔE = 0.007 keV) with higher-resolution detectors or deconvolution
 - Evaluate on multi-detector setups and larger-format scans to test linear runtime scaling
@@ -152,5 +152,5 @@ OR fig_sam_segmentation.pdf side by side with CVI map
 | 5 | CVI | 2:00 |
 | 6 | Results | 2:00 |
 | 7 | Further Work | 0:40 |
-| — | Buffer / Q&A transition | 0:00 |
+| - | Buffer / Q&A transition | 0:00 |
 | **Total** | | **10:00** |

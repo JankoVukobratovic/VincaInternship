@@ -1,4 +1,4 @@
-# Authors — Geometry-resolved Characterization of a Dual-detector MA-XRF Scanner
+# Authors - Geometry-resolved Characterization of a Dual-detector MA-XRF Scanner
 
 ## Author 1
 

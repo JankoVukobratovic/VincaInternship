@@ -1,4 +1,4 @@
-# XRF Analiza — Aurora Antico 1: Kompletan Izvestaj
+# XRF Analiza - Aurora Antico 1: Kompletan Izvestaj
 
 **Datum analize:** Mart 2026
 **Datasets:** prova1, prova2, ruotato
@@ -15,15 +15,15 @@
 
 Sirovi MCA podaci (gitignored, lokalno u `Resources/`):
 
-- `aurora-antico1-prova1/` — 120×60 = 7200 piksela, dwell=3s, detektori 10264 i 19511
-- `aurora-antico1-prova2/` — isti objekat, ponavljanje skeniranja
-- `aurora-antico1-ruotato/` — zarotiran sken, 80×45 = 3600 piksela
-- `stacked/` — stacked MCA fajlovi (REAL_TIME=6s), 3600 fajlova
+- `aurora-antico1-prova1/` - 120×60 = 7200 piksela, dwell=3s, detektori 10264 i 19511
+- `aurora-antico1-prova2/` - isti objekat, ponavljanje skeniranja
+- `aurora-antico1-ruotato/` - zarotiran sken, 80×45 = 3600 piksela
+- `stacked/` - stacked MCA fajlovi (REAL_TIME=6s), 3600 fajlova
 
 Generisane mape sacuvane su u:
 
-- `results/` — mape elemenata za prova1/prova2 + razlike + Sn mape
-- `results_rotated/` — mape za ruotato (ukljucuje PbLl, PbLg)
+- `results/` - mape elemenata za prova1/prova2 + razlike + Sn mape
+- `results_rotated/` - mape za ruotato (ukljucuje PbLl, PbLg)
 
 Za detalje o aktuelnoj strukturi i skriptama vidi `README.md`.
 
@@ -52,7 +52,7 @@ Linearna kalibracija dobivena iz 5 referentnih pikova:
 
 Opseg: kanal 0 = −0.069 keV, kanal 1023 = 29.76 keV
 
-### 2.3 Detektori — Razlike u Osetljivosti
+### 2.3 Detektori - Razlike u Osetljivosti
 
 | Element | Energija (keV) | det10264 / det19511 ratio |
 |---------|----------------|---------------------------|
@@ -64,7 +64,7 @@ Opseg: kanal 0 = −0.069 keV, kanal 1023 = 29.76 keV
 | Zn Kα   | 8.64           | 0.82× |
 | Pb Lβ   | 12.61          | **0.73×** (det19511 osetljiviji) |
 
-**Zakljucak:** Razlika je posledica razlicitih debljina Be prozora (berilium window) koji apsorbuje niskoeneregetska zracenja. Det 10264 ima tanji prozor → vece signale za S, Ca, Ti. Presek osetljivosti je oko 8 keV (Cu, Zn). Det 19511 ima deblji prozor → bolji SNR za Pb (>12 keV). Ova razlika je **intrinsicna geometrijska osobina** detektora, a ne varijacija uzorka — potvrdjeno konzistentnim ratiom u prova1, prova2 I ruotato.
+**Zakljucak:** Razlika je posledica razlicitih debljina Be prozora (berilium window) koji apsorbuje niskoeneregetska zracenja. Det 10264 ima tanji prozor → vece signale za S, Ca, Ti. Presek osetljivosti je oko 8 keV (Cu, Zn). Det 19511 ima deblji prozor → bolji SNR za Pb (>12 keV). Ova razlika je **intrinsicna geometrijska osobina** detektora, a ne varijacija uzorka - potvrdjeno konzistentnim ratiom u prova1, prova2 I ruotato.
 
 ---
 
@@ -95,7 +95,7 @@ Za svaki piksel i svaki element:
 | Element | Centar (keV) | hw (keV) | bg_hw (keV) |
 |---------|-------------|----------|-------------|
 | S Kα    | 2.31        | 0.20     | 0.25        |
-| K Kα    | 3.3138      | specijalno (vidi §3.2) | — |
+| K Kα    | 3.3138      | specijalno (vidi §3.2) | - |
 | Ca Kα   | 3.69        | 0.30     | 0.25        |
 | Ti Kα   | 4.51        | 0.30     | 0.25        |
 | Fe Kα   | 6.40        | 0.30     | 0.25        |
@@ -107,12 +107,12 @@ Za svaki piksel i svaki element:
 ### 3.2 Specijalna K Metoda (Tesni Sideband)
 
 K Kα (3.3138 keV) je okruzen dvema interferencama:
-- **Levo:** Ar Kα na 2.957 keV (argon iz vazduha u putu zraka) — rep ovog pika doseze do 3.2 keV. Vidljiv samo na det 10264 (tanji prozor).
-- **Desno:** Ca Kα na 3.69 keV — nagib pocinje vec od 3.45 keV.
+- **Levo:** Ar Kα na 2.957 keV (argon iz vazduha u putu zraka) - rep ovog pika doseze do 3.2 keV. Vidljiv samo na det 10264 (tanji prozor).
+- **Desno:** Ca Kα na 3.69 keV - nagib pocinje vec od 3.45 keV.
 
 Standardni bg prozor [3.08–3.22] keV hvata rep Ar pika → precenjuje pozadinu → net K = 0.
 
-**Resenje — tesni sideband blokovi u cistoj dolini:**
+**Resenje - tesni sideband blokovi u cistoj dolini:**
 ```
 BG levo : [3.23, 3.28] keV  → posle Ar repa, pre K pika
 K prozor: [3.296, 3.332] keV  (±2 kanala oko 3.3138 keV)
@@ -120,18 +120,18 @@ BG desno: [3.35, 3.42] keV  → posle K pika, pre Ca nagiba
 ```
 Pozadina = prosek oba bloka po kanalu × broj kanala u piku.
 
-### 3.3 Korekcija Zn — Doprinos Cu Kβ
+### 3.3 Korekcija Zn - Doprinos Cu Kβ
 
 Cu Kβ energija (8.903 keV) je izvan Zn prozora (8.64±0.25 keV), ali Cu ima relativno jacak Kβ. Koeficijent Cu Kβ/Kα ≈ 0.17 (standardna vrednost za Cu fluorescenciju).
 
 **Korekcija:** `Zn_corr = max(0, Zn_raw − 0.17 × Cu_raw)`
 
-### 3.4 Korekcija As — Doprinos Pb Lα
+### 3.4 Korekcija As - Doprinos Pb Lα
 
-As Kα = 10.544 keV, Pb Lα = 10.551 keV — razdvajanje je samo **0.007 keV**, sto je daleko ispod rezolucije detektora (~0.25 keV FWHM na 10 keV). Pikovi su **apsolutno nerazdvojivi**.
+As Kα = 10.544 keV, Pb Lα = 10.551 keV - razdvajanje je samo **0.007 keV**, sto je daleko ispod rezolucije detektora (~0.25 keV FWHM na 10 keV). Pikovi su **apsolutno nerazdvojivi**.
 
 **Metoda procene ratio-a Pb Lα/Lβ iz podataka:**
-1. Uzmi piksele gde je As mali (donji kvartal — pretpostavljamo da tamo nema As)
+1. Uzmi piksele gde je As mali (donji kvartal - pretpostavljamo da tamo nema As)
 2. Linearna regresija: As_raw ~ a × Pb_Lβ + b na tom skupu
 3. Koeficijent `a` = Pb Lα/Lβ ratio iz podataka
 4. Primeni: `As_corr = max(0, As_raw − a × Pb_Lβ)`
@@ -146,9 +146,9 @@ As Kα = 10.544 keV, Pb Lα = 10.551 keV — razdvajanje je samo **0.007 keV**, 
 
 Konzistentnost ratio-a kroz sve tri skeniranja (±1.5%) potvrdjuje validnost metode.
 
-### 3.5 Korekcija S — Doprinos Pb Mα
+### 3.5 Korekcija S - Doprinos Pb Mα
 
-Pb Mα = 2.346 keV, S Kα = 2.308 keV — razdvajanje 0.038 keV, takodjer ispod rezolucije.
+Pb Mα = 2.346 keV, S Kα = 2.308 keV - razdvajanje 0.038 keV, takodjer ispod rezolucije.
 
 **Isti pristup kao za As:** regresija na donji kvartal S vrednosti, estimacija Pb Mα/Lβ ratio-a, oduzimanje.
 
@@ -160,90 +160,90 @@ Pb Mα = 2.346 keV, S Kα = 2.308 keV — razdvajanje 0.038 keV, takodjer ispod 
 | prova2     | 0.1230    | 0.0025    |
 | ruotato    | 0.1730    | 0.0019    |
 
-**Kljucna razlika:** Pb Mα (2.35 keV) je jako niskoeneregetsko zracenje — deblji Be prozor det 19511 ga gotovo u potpunosti apsorbuje (ratio ≈ 0.002 vs 0.17 za det 10264).
+**Kljucna razlika:** Pb Mα (2.35 keV) je jako niskoeneregetsko zracenje - deblji Be prozor det 19511 ga gotovo u potpunosti apsorbuje (ratio ≈ 0.002 vs 0.17 za det 10264).
 
 ---
 
-## 4. Elementi — Validacija i Status
+## 4. Elementi - Validacija i Status
 
 ### 4.1 Prova1 / Prova2 (120×60 = 7200 piksela)
 
-#### Ca Kα (3.69 keV) — VALIDAN
+#### Ca Kα (3.69 keV) - VALIDAN
 - Det 10264: mean=1539, max=6116, 100% piksela pozitivno
 - Det 10264/19511 ratio = 6.1× (konzistentno)
 - Reproducibilnost prova1/prova2: **r=0.991**, Δmean=1.6%
 - Distribucija realna, mapa pokazuje jasnu prostornu strukturu
 
-#### Ti Kα (4.51 keV) — VALIDAN
+#### Ti Kα (4.51 keV) - VALIDAN
 - Det 10264: mean=413, max=1903, 100% piksela
 - Reproducibilnost: **r=0.959**, Δmean=1.6%
-- Prostorni pattern korelisan sa Ca (r=0.236) — razlicita distribucija
+- Prostorni pattern korelisan sa Ca (r=0.236) - razlicita distribucija
 
-#### Fe Kα (6.40 keV) — VALIDAN
+#### Fe Kα (6.40 keV) - VALIDAN
 - Det 10264: mean=269, max=2272, 100% piksela
 - Reproducibilnost: **r=0.991**, Δmean=1.0%
 - Odlicna korelacija prova1/prova2, najjaca reproducibilnost
 
-#### Cu Kα (8.04 keV) — VALIDAN
+#### Cu Kα (8.04 keV) - VALIDAN
 - Det 10264: mean=213, max=1064, 70% piksela (ostalo = 0 = nema Cu)
 - Reproducibilnost: **r=0.978**, Δmean=0.1%
 - Jasno lokalizovan signal (ne posvuda)
 
-#### Zn Kα (8.64 keV) — VALIDAN (korigovano)
+#### Zn Kα (8.64 keV) - VALIDAN (korigovano)
 - Pre korekcije: mean≈33, max≈3992; dopo korekcije: mean≈30, max≈3960
-- Cu Kβ doprinos mali ali realan — korekcija ×0.17 smanjuje vrednosti malo
+- Cu Kβ doprinos mali ali realan - korekcija ×0.17 smanjuje vrednosti malo
 - Reproducibilnost: **r=0.985**, Δmean=0.9%
 - Samo ~27% piksela pozitivno → jasno lokalizovano
 
-#### Pb Lβ1 (12.61 keV) — VALIDAN
+#### Pb Lβ1 (12.61 keV) - VALIDAN
 - Det 10264: mean=2635, max=6370, 100% piksela
 - Det 19511: mean=3626, max=8829 (det 19511 osetljiviji na 12.6 keV!)
-- Reproducibilnost: **r=0.987**, Δmean=0.1% — najkonzistentniji signal
+- Reproducibilnost: **r=0.987**, Δmean=0.1% - najkonzistentniji signal
 - Koristi se i za korekciju As i S
 
-#### S Kα (2.31 keV) — VALIDAN, razlicite vrednosti po detektoru
+#### S Kα (2.31 keV) - VALIDAN, razlicite vrednosti po detektoru
 - Det 10264: mean=505 (post-corr), 100% piksela
 - Det 19511: mean=50 (post-corr), 97% piksela
 - Razlika 10× izmedju detektora posledica Be prozora
-- Reproducibilnost: **r=0.916** (det10264), r=0.140 (det19511 — slab SNR)
+- Reproducibilnost: **r=0.916** (det10264), r=0.140 (det19511 - slab SNR)
 - Det 19511 ima nizak SNR za S zbog absorpcije u Be prozoru
 
-#### K Kα (3.3138 keV) — SLAB SIGNAL, PARCIJALNO VALIDAN
+#### K Kα (3.3138 keV) - SLAB SIGNAL, PARCIJALNO VALIDAN
 - Det 10264: mean=2.5, max=24.5, **48% piksela pozitivno**
 - Det 19511: mean=3.3, max=36.8, **49% piksela pozitivno**
 - Signal je meren ali je na granici detekcije (SNR ≈ 2-5)
-- Reproducibilnost: **r≈0** — signal previse slab za piksel-to-piksel reprodukciju
+- Reproducibilnost: **r≈0** - signal previse slab za piksel-to-piksel reprodukciju
 - Globalne srednje vrednosti su konzistentne (Δ<4%)
 - **Zakljucak:** K je prisutan u uzorku ali marginalni signal. Mapa pokazuje tendenciju ali ne individualne piksele pouzdano.
 
-#### As Kα (10.54 keV, zajednicki prozor sa Pb Lα) — SUVISLO
-- Pre korekcije: mean=3829 (det10264) — sve to je zapravo Pb Lα!
+#### As Kα (10.54 keV, zajednicki prozor sa Pb Lα) - SUVISLO
+- Pre korekcije: mean=3829 (det10264) - sve to je zapravo Pb Lα!
 - **POSLE KOREKCIJE: mean=0.3, samo 45/7200 piksela pozitivno**
 - Zakljucak: **U uzorku suvislo nema arsena.** Signal u ovom prozoru je skoro u potpunosti Pb Lα. Mapa oznacena "As+PbLα" u suštini prikazuje raspodelu olova.
 
-#### K Kα — Beleska o Ar interferenci
-Ar Kα (2.957 keV) je vidljiv u spektrima **iskljucivo na det 10264** (tanji Be prozor propusta Ar fluorescenciju iz vazduha u putu zraka). Na det 19511 nije vidljiv. Ova linija NIJE hemijski element u uzorku — to je artefakt instrumentacije.
+#### K Kα - Beleska o Ar interferenci
+Ar Kα (2.957 keV) je vidljiv u spektrima **iskljucivo na det 10264** (tanji Be prozor propusta Ar fluorescenciju iz vazduha u putu zraka). Na det 19511 nije vidljiv. Ova linija NIJE hemijski element u uzorku - to je artefakt instrumentacije.
 
 ### 4.2 Ruotato (80×45 = 3600 piksela) + Dodatne Pb Linije
 
-Ruotato dataset sadrzi iste elemente kao prova1/prova2 — isti objekat, zarotiran ugao skeniranja.
+Ruotato dataset sadrzi iste elemente kao prova1/prova2 - isti objekat, zarotiran ugao skeniranja.
 
 **Dodatni elementi u ruotato analizi:**
 
-#### Pb Ll (9.185 keV) — VALIDAN
+#### Pb Ll (9.185 keV) - VALIDAN
 - Det 10264: mean=115, max=391, 92% piksela
 - Det 19511: mean=133, max=463, 92% piksela
-- **Korelacija sa Pb Lβ: r=0.785–0.797** — potvrdjeno da je ista vrsta (Pb)
+- **Korelacija sa Pb Lβ: r=0.785–0.797** - potvrdjeno da je ista vrsta (Pb)
 - Ova linija je realna Pb L-serija linija
 
-#### Pb Lγ1 (14.77 keV) — VALIDAN
+#### Pb Lγ1 (14.77 keV) - VALIDAN
 - Det 10264: mean=297, max=741, 100% piksela
 - Det 19511: mean=468, max=1055, 100% piksela
-- **Korelacija sa Pb Lβ: r=0.936–0.945** — odlicna, potvrdjeno Pb
+- **Korelacija sa Pb Lβ: r=0.936–0.945** - odlicna, potvrdjeno Pb
 - Det 19511 jaci signal (konzistentno sa vecom osetljivoscu na visokim energijama)
 
 **Zasto su ove linije dodate samo u ruotato a ne i u prova1/prova2?**
-Tehnoloskim razlogom — prova1/prova2 analiza je dizajnirana pre detaljnog pregleda spektara. Preporucuje se dodati PbLl i PbLg i u `analiza_korigovana.py`.
+Tehnoloskim razlogom - prova1/prova2 analiza je dizajnirana pre detaljnog pregleda spektara. Preporucuje se dodati PbLl i PbLg i u `analiza_korigovana.py`.
 
 ### 4.3 Elementi Koji SU PROVERAVANI I ISKLJUCENI
 
@@ -253,7 +253,7 @@ Tehnoloskim razlogom — prova1/prova2 analiza je dizajnirana pre detaljnog preg
 - Sa pozadinskim oduzimanjem: **net signal = 0 za sve ove elemente u svim pikselima**
 - **Zakljucak:** Lokalni maksimumi koje je find_peaks detektovao su talasanja Compton rasprsenosti kontinuuma, a ne pravi fluorescencioni pikovi. Ovi elementi NISU prisutni u uzorku.
 
-#### Sn Kα (25.27 keV) — MARGINALANO
+#### Sn Kα (25.27 keV) - MARGINALANO
 - Signal na 25.27 keV je na granici detekcije (~10-29 counts vs ~15 pozadina)
 - Prostorna konzistentnost izmedju prova1 i prova2 sugeriše marginalnu realnost signala
 - SNR je nedovoljan za pouzdanu kvantitativnu mapu
@@ -292,7 +292,7 @@ Srednje vrednosti signala su konzistentne izmedju prova1 i prova2 za sve jace el
 | Cu      | 213                  | 194                    | 0.91  |
 | Pb      | 2635                 | 2551                   | 0.97  |
 
-Svi elementi su konzistentni (±5-18%). Lagano veci Fe u ruotato moze biti posledica drugog ugla skeniranja koji prikazuje povrsinu sa vise zeleza. **Nema novih elemenata** u ruotato — isti hemijski sastav, razlicita geometrija skeniranja.
+Svi elementi su konzistentni (±5-18%). Lagano veci Fe u ruotato moze biti posledica drugog ugla skeniranja koji prikazuje povrsinu sa vise zeleza. **Nema novih elemenata** u ruotato - isti hemijski sastav, razlicita geometrija skeniranja.
 
 ---
 
@@ -372,41 +372,41 @@ Na osnovu svih analiza, u uzorku su potvrdjeni sledeci elementi:
 
 3. **Negativni signali:** Posle pozadinskog oduzimanja i korekcija, sve vrednosti su klipirane na 0 (fizicki minimum).
 
-4. **Vizualizacija:** `vmin=0, vmax=percentile(99)` — gornji 1% se klipira da bi slabiji signali bili vidljivi na fonu jakih.
+4. **Vizualizacija:** `vmin=0, vmax=percentile(99)` - gornji 1% se klipira da bi slabiji signali bili vidljivi na fonu jakih.
 
 5. **K pouzdanost:** K signal je slab (SNR 2-5). Tesni sideband metod je neophodan (standardna metoda daje net=0 zbog Ar i Ca interferencija), ali cak i sa ovim pristupom individualni pikseli nisu pouzdani. Suma/srednja vrednost po regijama je pouzdana.
 
 ---
 
-## 11. Uraðeno — Hronologicni Pregled
+## 11. Uraðeno - Hronologicni Pregled
 
-1. **Inicijalna analiza** (`main.py`, `better_main.py`) — fiksni prozor bez bg oduzimanja, pogresno K target (3.00 keV umesto 3.31 keV). Rezultati u `rezultati_novi/`. *(Obrisano kao zastarelo)*
+1. **Inicijalna analiza** (`main.py`, `better_main.py`) - fiksni prozor bez bg oduzimanja, pogresno K target (3.00 keV umesto 3.31 keV). Rezultati u `rezultati_novi/`. *(Obrisano kao zastarelo)*
 
 2. **Identifikacija problema:**
-   - K target je bio pogresan — K Kα na 3.3138 keV, ne 3.0 keV
+   - K target je bio pogresan - K Kα na 3.3138 keV, ne 3.0 keV
    - Standardni bg prozor za K je zahvatao Ar Kα rep i Ca Kα nagib → net K = 0 uvek
    - Ni bg oduzimanja nije bilo → mape su pokazivale sirovi integral (sa pozadinom)
    - Zn je sadrzao Cu Kβ doprinos
    - As prozor je sadrzao Pb Lα doprinos
    - S prozor je sadrzao Pb Mα doprinos
 
-3. **Korigovana analiza** (`analiza_korigovana.py`) — pozadinsko oduzimanje za sve elemente, tesni sideband K metoda, Zn−CuKβ, As−PbLα, S−PbMα korekcije. Rezultati u `rezultati_korigovani/`.
+3. **Korigovana analiza** (`analiza_korigovana.py`) - pozadinsko oduzimanje za sve elemente, tesni sideband K metoda, Zn−CuKβ, As−PbLα, S−PbMα korekcije. Rezultati u `rezultati_korigovani/`.
 
-4. **Sn mape** (`mapa_kalaj.py`) — Sn Kα na 25.27 keV, slab signal ali prostorno konzistentan.
+4. **Sn mape** (`mapa_kalaj.py`) - Sn Kα na 25.27 keV, slab signal ali prostorno konzistentan.
 
-5. **Prova1 signal plotovi** (`generate_prova1_signals.py`) — generisani spektri po pikselu sa anotiranim elementima (375MB, obrisano kao zastarelo).
+5. **Prova1 signal plotovi** (`generate_prova1_signals.py`) - generisani spektri po pikselu sa anotiranim elementima (375MB, obrisano kao zastarelo).
 
-6. **Ruotato analiza** (`analiza_ruotato.py`) — inicijalno ukljucivala Cr/Mn/Co/Ni, potom verifikovano da su Compton artefakti, uklonjeni. Dodate PbLl i PbLg linije. Cache izbrisan i ponovo generisan sa ispravnim elementima.
+6. **Ruotato analiza** (`analiza_ruotato.py`) - inicijalno ukljucivala Cr/Mn/Co/Ni, potom verifikovano da su Compton artefakti, uklonjeni. Dodate PbLl i PbLg linije. Cache izbrisan i ponovo generisan sa ispravnim elementima.
 
-7. **Validacija cross-dataset:** Prova1 vs prova2 vs ruotato — konzistentni elementi, konzistentni ratio-i, konzistentna osetljivost detektora. Potvrdjeno: svi tri skeniranja su isti objekat.
+7. **Validacija cross-dataset:** Prova1 vs prova2 vs ruotato - konzistentni elementi, konzistentni ratio-i, konzistentna osetljivost detektora. Potvrdjeno: svi tri skeniranja su isti objekat.
 
 8. **Reorganizacija projekta (prva faza):** Ruotato data premestena u `aurora-antico1-ruotato/`. Obrisano: `main.py`, `better_main.py`, `razlika_po_detektoru.py`, `restauracija.py`, `analiza_novi.py`, `map.png`, `rezultati/`, `rezultati_novi/`, `prova1_signal/`.
 
 9. **Konsolidacija u monolith:** Sve analiticke skripte (`analiza_korigovana.py`, `analiza_ruotato.py`, `analiza_outlier.py`, `nmf_analiza.py`, `pomocne_metode_analiza.py`) objedinjene u jedan `analiza_core.py` sa `run_scan()` API-jem. Definicije elemenata izdvojene u `elements.json`.
 
-10. **Faza 2 — Vulnerability mapping** (`vulnerability_mapping.py`): NMF dekompozicija pigmentnih komponenti + Chemical Vulnerability Index (CVI) baziran na ko-lokaciji inkompatibilnih materijala (Ti/Ca, Cu degradacija, Pb potamnjivanje, itd.).
+10. **Faza 2 - Vulnerability mapping** (`vulnerability_mapping.py`): NMF dekompozicija pigmentnih komponenti + Chemical Vulnerability Index (CVI) baziran na ko-lokaciji inkompatibilnih materijala (Ti/Ca, Cu degradacija, Pb potamnjivanje, itd.).
 
-11. **Faza 3 — SAM segmentacija** (`SAM/sam_pipeline.py`): Meta Segment Anything Model za automatsku segmentaciju freske + per-region CVI analiza.
+11. **Faza 3 - SAM segmentacija** (`SAM/sam_pipeline.py`): Meta Segment Anything Model za automatsku segmentaciju freske + per-region CVI analiza.
 
 12. **Reorganizacija za GitHub:** `analiza_core.py` → `src/xrf_core.py`, `elements.json` → `src/elements.json`. Pokretacke skripte u `scripts/01_run_analysis.py`, `02_vulnerability.py`, `03_sam_segmentation.py`, `compare_Ti.py`, `generate_signals.py`. Output folderi preimenovani: `rezultati/` → `results/`, `rezultati_ruotato/` → `results_rotated/`. Veliki binarni fajlovi (.npy, .pt, .pth) i sirovi MCA podaci dodati u `.gitignore`.
 

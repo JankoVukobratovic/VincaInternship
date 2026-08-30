@@ -1,10 +1,10 @@
-# Poster Plan — Heidelberg Conference
+# Poster Plan - Heidelberg Conference
 
 **Work:** *Geometry-resolved Characterization of a Dual-detector MA-XRF Scanner*
-(the second paper — `PLAN.md`, `DRAFT.md`, `abstract.tex`, authors in `authors.md`)
+(the second paper - `PLAN.md`, `DRAFT.md`, `abstract.tex`, authors in `authors.md`)
 
 > **TODO before designing anything:** check the conference's poster
-> specification — required size (usually A0), portrait vs. landscape,
+> specification - required size (usually A0), portrait vs. landscape,
 > whether a template/logo is mandatory, and whether they print it or
 > you bring it. Everything below assumes **A0 portrait (841 × 1189 mm)**
 > until confirmed.
@@ -13,8 +13,8 @@
 
 ## 1. The one-sentence takeaway (the whole poster serves this)
 
-> **The difference between a scanner's two detectors — normally summed
-> away — plus one tilted scan of the same painting, characterizes the
+> **The difference between a scanner's two detectors - normally summed
+> away - plus one tilted scan of the same painting, characterizes the
 > instrument for free: detector response, acquisition geometry, canvas
 > topography, and a learned fusion that beats summing by 10–18 % SNR.**
 
@@ -26,17 +26,17 @@ talk, not on the poster.
 
 Ranked; the top four are the poster, the rest is optional filler.
 
-1. **The idea / trick** — two detectors see the same spot from two
+1. **The idea / trick** - two detectors see the same spot from two
    angles. Tilting the canvas changes photon exit paths but not the
    detectors. Comparing frontal vs. tilted scans therefore *splits*
    the channel ratio R(E) into a detector part (tilt-invariant) and a
    geometric part (tilt-dependent, energy-structured). No calibration
-   standards, no extra hardware — two routine scans.
+   standards, no extra hardware - two routine scans.
    *Figure:* `presentation/figs/geometry_schematic.png`
 
 2. **Two-stage decomposition result** (the hero figure):
    - R = det10264/det19511 falls from **≈5.8 at Ca Kα to 0.63 at
-     Pb Lγ** — the two channels are up to sixfold apart, i.e. far from
+     Pb Lγ** - the two channels are up to sixfold apart, i.e. far from
      interchangeable.
    - A **3-parameter detector model** reproduces the frontal curve over
      two orders of magnitude; fitted absorber **973 ± 2 µm
@@ -48,7 +48,7 @@ Ranked; the top four are the poster, the rest is optional filler.
      tilt ≲ 8°).
    *Figure:* `results/detector_diff/geometry_fit.png` (both panels)
 
-3. **Learned dual-detector fusion (Noise2Noise)** — the two channels
+3. **Learned dual-detector fusion (Noise2Noise)** - the two channels
    are conditionally independent Poisson realizations; a 1D U-Net with
    *full inverse-variance loss weights* (prescribed by the measured
    R(E)) fuses them:
@@ -57,13 +57,13 @@ Ranked; the top four are the poster, the rest is optional filler.
      inverse-variance weighting gives only +0.9 %.
    - Six of eight lines positive: Pb Lℓ +69 %, Pb Lγ +33 %, Fe +28 %,
      Cu +17 %; Ca and Ti stay on the plain sum (low-energy level bias).
-   - Ablation: same network with unweighted loss = **−0.1 %** — the
+   - Ablation: same network with unweighted loss = **−0.1 %** - the
      gain comes from the measured variance structure, not from the
      architecture. In acquisition time, +17.7 % SNR ≈ 39 % longer dwell.
    *Figures:* `results/detector_diff/fusion_showcase.png` (visual
-   before/after — great crowd magnet) and/or `fusion_benchmark.png`.
+   before/after - great crowd magnet) and/or `fusion_benchmark.png`.
 
-4. **Canvas topography from detector disagreement** — inverting
+4. **Canvas topography from detector disagreement** - inverting
    per-pixel ratio residuals through the measured tilt response turns
    the eight lines into repeated measurements of local surface slope:
    a **relief map of the canvas from a single scan** (cross-scan
@@ -72,7 +72,7 @@ Ranked; the top four are the poster, the rest is optional filler.
    *Figure:* `results/detector_diff/canvas_topography.png` (combined
    panel only).
 
-5. *(Optional, small)* **Positioning error budget** — element maps move
+5. *(Optional, small)* **Positioning error budget** - element maps move
    by up to **0.63 percentage points per degree** of mounting error
    (Ca +0.50 %/°, Ti +0.45 %/° vs. Pb Lβ −0.13 %/°), in the same
    energy order the model predicts; these are lower bounds.
@@ -80,7 +80,7 @@ Ranked; the top four are the poster, the rest is optional filler.
    `results/registration/positioning_sensitivity.png`.*
 
 6. *(Optional, one sentence in Methods)* Full-frame ratios mix in a
-   field-of-view artifact big enough to flip signs — all ratios are
+   field-of-view artifact big enough to flip signs - all ratios are
    computed on the **registered overlap** (affine registration,
    NCC 0.965). This is an honest-methods point reviewers/visitors like.
 
@@ -118,37 +118,36 @@ has to guess.
 **Assertion headlines.** Name each block with its *finding*, not its
 category:
 - ① "One tilted scan separates detector from geometry" (not "Introduction")
-- ③ "The two channels differ sixfold — and the model explains it" (not "Results")
+- ③ "The two channels differ sixfold - and the model explains it" (not "Results")
 - ④ "Learned fusion beats summing by 10–18 % SNR" (not "Deep learning")
 - ⑤ "The discarded difference is also a relief map" (not "Topography")
 
 A visitor who reads *only the headlines* should get the whole story.
 
-## 4. Rules of thumb (first poster — what actually matters)
+## 4. Rules of thumb (first poster - what actually matters)
 
 - **Design for three depths of engagement:** 3 seconds (title + hero
   figure), 30 seconds (headlines + take-home box), 3 minutes (bullets
-  and numbers). Most visitors never reach depth three — that's normal;
+  and numbers). Most visitors never reach depth three - that's normal;
   depth three is *you* talking them through it.
 - **Word budget: ≤ 600 words total.** The paper is the archive; the
   poster is an advertisement for a conversation. No paragraphs longer
   than 3 lines. Bullets everywhere except the idea block.
 - **Font sizes (A0):** title 90–110 pt, authors 48 pt, block headlines
   40–48 pt, body 28–32 pt, captions/references ≥ 20 pt. Test: print
-  one block on A4 — if you can read it at arm's length, the A0 poster
+  one block on A4 - if you can read it at arm's length, the A0 poster
   reads from 1.5 m.
 - **Area budget:** ~45 % figures, ~25 % text, ~30 % white space. White
   space is not wasted space; a cramped poster reads as noise.
 - **Figures:** every figure gets a one-line bold caption stating the
-  conclusion ("Tilt shift is monotonic in energy — geometry and
-  detector separate"). Axis labels must survive shrinking — regenerate
+  conclusion ("Tilt shift is monotonic in energy - geometry and
+  detector separate"). Axis labels must survive shrinking - regenerate
   at poster font sizes if needed (matplotlib: `plt.rcParams['font.size']`
   up to ~18–20 for these figure widths, export PDF/300-dpi PNG).
-- **Color:** the existing figures already use a blue/orange palette —
-  make that the poster accent palette and touch nothing else. One
+- **Color:** the existing figures already use a blue/orange palette - make that the poster accent palette and touch nothing else. One
   accent color for headlines and the take-home box.
 - **QR codes:** one to the GitHub repo (data is already shared via
-  Releases — reproducibility is a selling point, say so next to the QR),
+  Releases - reproducibility is a selling point, say so next to the QR),
   one to the paper/abstract PDF. Test both from 1 m away.
 - **Take-home box:** the §1 sentence, verbatim, big. Bottom-center or
   bottom-right (where the eye exits).
