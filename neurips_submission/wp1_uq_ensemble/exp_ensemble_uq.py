@@ -78,6 +78,7 @@ import argparse
 import json
 import math
 import os
+import re
 import sys
 import time
 import warnings
@@ -747,10 +748,10 @@ def make_figures():
     xg = [gauss_cov(z) for z in zs]
 
     # --- figure 1: calibration curves -------------------------------------
-    panels = [("simulated, footprint", is_sim, "footprint"),
-              ("simulated, hole", is_sim, "hole"),
-              ("real scan, footprint", is_real, "footprint")]
-    fig, axes = plt.subplots(1, 3, figsize=(7.4, 1.95), sharey=True)
+    panels = [("sim., footprint", is_sim, "footprint"),
+              ("sim., hole", is_sim, "hole"),
+              ("real scan", is_real, "footprint")]
+    fig, axes = plt.subplots(1, 3, figsize=(7.6, 2.1), sharey=True)
     style = {("jitter", "ens"): dict(color=NAVY, ls=":", marker="o"),
              ("jitter", "total"): dict(color=NAVY, ls="-", marker="o"),
              ("jitter", "total_ref"): dict(color=NAVY, ls="--", marker="o"),
@@ -758,7 +759,7 @@ def make_figures():
              ("control", "total"): dict(color=GREY, ls="-", marker="s"),
              ("control", "total_ref"): dict(color=GREY, ls="--", marker="s")}
     band_label = {"ens": "spread only", "total": "+ noise",
-                  "total_ref": "+ noise + ref. noise"}
+                  "total_ref": "+ ref. noise"}
     for ax, (title, src, reg) in zip(axes, panels):
         ax.plot([0, 1], [0, 1], color="k", lw=0.8, alpha=0.5)
         for (kind, band), st in style.items():
@@ -777,22 +778,38 @@ def make_figures():
                 es.append(np.std(v) if v else np.nan)
             if np.all(np.isnan(ys)):
                 continue
-            lab = f"{kind}, {band_label[band]}"
-            ax.errorbar(xg, ys, yerr=es, label=lab, ms=4, lw=1.4,
-                        capsize=2, **st)
+            ax.errorbar(xg, ys, yerr=es, ms=4, lw=1.4, capsize=2, **st)
         ax.set_title(title, fontsize=10)
-        ax.set_xlabel("nominal Gaussian coverage", fontsize=9)
+        ax.set_xlabel("nominal coverage", fontsize=9)
         ax.set_xlim(0.3, 1.0)
         ax.set_ylim(0.0, 1.0)
         ax.tick_params(labelsize=8)
         ax.grid(alpha=0.25)
     axes[0].set_ylabel("empirical coverage", fontsize=9)
-    h, l = axes[0].get_legend_handles_labels()
-    axes[1].legend(h, l, fontsize=8, loc="upper left", frameon=False)
-    fig.tight_layout()
+
+    # two compact legends outside the axes: color = which ensemble,
+    # linestyle = which band, instead of six long "jitter, ..." labels
+    color_proxy = [plt.Line2D([0], [0], color=NAVY, marker="o", lw=1.4,
+                              label="jitter"),
+                   plt.Line2D([0], [0], color=GREY, marker="s", lw=1.4,
+                              label="control")]
+    style_proxy = [plt.Line2D([0], [0], color="k", ls=ls, lw=1.4,
+                              label=band_label[b])
+                   for b, ls in (("ens", ":"), ("total", "-"),
+                                 ("total_ref", "--"))]
+    leg1 = fig.legend(handles=color_proxy, loc="upper left",
+                      bbox_to_anchor=(1.005, 0.98), fontsize=8,
+                      frameon=False, title="ensemble", title_fontsize=8,
+                      handlelength=1.6, borderaxespad=0.0)
+    fig.legend(handles=style_proxy, loc="upper left",
+              bbox_to_anchor=(1.005, 0.62), fontsize=8, frameon=False,
+              title="band", title_fontsize=8, handlelength=1.6,
+              borderaxespad=0.0)
+    fig.add_artist(leg1)
+    fig.tight_layout(rect=(0, 0, 0.86, 1))
     out = io_utils.fig_path("wp1_calibration.png")
-    fig.savefig(out, dpi=200)
-    fig.savefig(out.replace(".png", ".pdf"))
+    fig.savefig(out, dpi=200, bbox_inches="tight")
+    fig.savefig(out.replace(".png", ".pdf"), bbox_inches="tight")
     plt.close(fig)
     print("saved:", out)
 
@@ -815,10 +832,13 @@ def make_figures():
         rows, cols = np.where(fp)
         r0, r1, c0, c1 = rows.min(), rows.max() + 1, cols.min(), cols.max() + 1
         crop = (slice(r0, r1), slice(c0, c1))
-        cols_t = ["truth", "ensemble mean", "|error|", "spread, control",
-                  "spread, jitter", "simulator part"]
-        fig, axes = plt.subplots(len(lines), len(cols_t),
-                                 figsize=(1.55 * len(cols_t), 0.95 * len(lines) + 0.45))
+        cols_t = ["truth", "ensemble\nmean", "|error|", "spread,\ncontrol",
+                  "spread,\njitter", "simulator\npart"]
+        ncols = len(cols_t) + 1  # +1 narrow colorbar column per row
+        fig, axes = plt.subplots(
+            len(lines), ncols, figsize=(1.5 * len(cols_t) + 0.5,
+                                        1.0 * len(lines) + 0.7),
+            gridspec_kw=dict(width_ratios=[1] * len(cols_t) + [0.08]))
         axes = np.atleast_2d(axes)
         for i, el in enumerate(lines):
             k = els.index(el)
@@ -832,24 +852,36 @@ def make_figures():
             panels_ = [(truth, 0, vmax, "viridis"), (mean, 0, vmax, "viridis"),
                        (err, 0, smax * 2, "magma"), (sc, 0, smax, "magma"),
                        (sj, 0, smax, "magma"), (ssim_, 0, smax, "magma")]
+            spread_im = None
             for j, (img, lo, hi, cmap) in enumerate(panels_):
                 ax = axes[i, j]
                 im = np.where(fp, img, np.nan)[crop]
-                ax.imshow(im, vmin=lo, vmax=hi, cmap=cmap,
-                          interpolation="nearest")
+                mp = ax.imshow(im, vmin=lo, vmax=hi, cmap=cmap,
+                               interpolation="nearest")
+                if j == 4:  # "spread, jitter" carries the shared spread scale
+                    spread_im = mp
                 if hole.any():
                     ax.contour(hole[crop].astype(float), levels=[0.5],
                                colors=["w"], linewidths=0.7)
                 ax.set_xticks([])
                 ax.set_yticks([])
                 if i == 0:
-                    ax.set_title(cols_t[j], fontsize=9)
+                    ax.set_title(cols_t[j], fontsize=8)
                 if j == 0:
                     ax.set_ylabel(el, fontsize=10)
-        fig.suptitle(f"{tag.replace('_', ' ')}: white outline = dropout hole;"
-                     " spread panels share one colour scale per line",
-                     fontsize=9)
-        fig.tight_layout()
+            cb = fig.colorbar(spread_im, cax=axes[i, ncols - 1])
+            cb.ax.tick_params(labelsize=6)
+            cb.set_label("counts" if i == len(lines) - 1 else "",
+                        fontsize=7)
+        m = re.match(r"a([\d.]+)_h(\d+)x(\d+)_(\w+)_d([\d.]+)", tag)
+        if m:
+            subtitle = (f"tilt {float(m.group(1)):g}°, "
+                       f"{m.group(2)}×{m.group(3)} px dropout hole, "
+                       f"dose {float(m.group(5)):g}")
+        else:
+            subtitle = tag.replace("_", " ")
+        fig.suptitle(f"{subtitle} (white outline = hole)", fontsize=9)
+        fig.tight_layout(rect=(0, 0, 1, 0.96))
         out = io_utils.fig_path("wp1_spread_maps.png")
         fig.savefig(out, dpi=200)
         fig.savefig(out.replace(".png", ".pdf"))
@@ -879,7 +911,7 @@ def make_figures():
                 pooled[(kind, "total")][0].append(s_tot)
                 pooled[(kind, "total")][1].append(err)
     if n_cases:
-        fig, axes = plt.subplots(1, 2, figsize=(6.2, 2.8), sharey=True)
+        fig, axes = plt.subplots(1, 2, figsize=(7.2, 2.8), sharey=True)
         for ax, band in zip(axes, ("ens", "total")):
             lim = 0.0
             for kind in KINDS:
@@ -901,14 +933,16 @@ def make_figures():
             ax.plot([0, lim], [0, lim], color="k", lw=0.8, alpha=0.5)
             ax.set_title("spread only" if band == "ens" else "spread + noise",
                          fontsize=10)
-            ax.set_xlabel("predicted sigma (units of the line's std)",
-                          fontsize=9)
+            ax.set_xlabel("predicted σ (line std units)", fontsize=9)
             ax.tick_params(labelsize=8)
             ax.grid(alpha=0.25)
         axes[0].set_ylabel("RMS error in the bin (down = better)",
                            fontsize=9)
-        axes[0].legend(frameon=False, fontsize=9)
-        fig.tight_layout()
+        fig.legend(*axes[0].get_legend_handles_labels(), loc="upper left",
+                  bbox_to_anchor=(0.885, 0.9), fontsize=9, frameon=False,
+                  handlelength=1.6, borderaxespad=0.0)
+        fig.subplots_adjust(left=0.08, right=0.86, top=0.9, bottom=0.16,
+                            wspace=0.08)
         out = io_utils.fig_path("wp1_error_vs_sigma.png")
         fig.savefig(out, dpi=200)
         fig.savefig(out.replace(".png", ".pdf"))

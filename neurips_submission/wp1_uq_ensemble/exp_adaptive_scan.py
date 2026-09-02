@@ -255,7 +255,7 @@ def make_figures():
               "oracle": uq.ORANGE}
     ls = {"adaptive": "-", "random": "-", "raster": "--", "oracle": ":"}
     lines = [el for el in config.FIG_LINES]
-    fig, axes = plt.subplots(1, len(lines), figsize=(2.5 * len(lines), 2.5),
+    fig, axes = plt.subplots(1, len(lines), figsize=(2.4 * len(lines) + 1.1, 2.5),
                              sharey=False)
     axes = np.atleast_1d(axes)
     for ax, el in zip(axes, lines):
@@ -271,12 +271,15 @@ def make_figures():
                 ys.append(np.mean(v))
             ax.plot(fr, ys, color=colors[s], ls=ls[s], lw=1.6, label=s)
         ax.set_title(el, fontsize=10)
-        ax.set_xlabel("measured fraction of the tilted frame", fontsize=9)
+        ax.set_xlabel("measured fraction", fontsize=9)
         ax.tick_params(labelsize=8)
         ax.grid(alpha=0.25)
     axes[0].set_ylabel("r vs truth (up = better)", fontsize=9)
-    axes[0].legend(frameon=False, fontsize=8)
-    fig.tight_layout()
+    fig.legend(*axes[0].get_legend_handles_labels(), loc="center left",
+              bbox_to_anchor=(0.875, 0.5), fontsize=9, frameon=False,
+              handlelength=1.8, borderaxespad=0.0)
+    fig.subplots_adjust(left=0.07, right=0.86, top=0.9, bottom=0.18,
+                        wspace=0.3)
     out = io_utils.fig_path("wp1_adaptive.png")
     fig.savefig(out, dpi=200)
     fig.savefig(out.replace(".png", ".pdf"))
