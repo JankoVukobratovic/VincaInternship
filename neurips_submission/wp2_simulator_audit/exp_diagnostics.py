@@ -558,11 +558,14 @@ def make_figures():
             v = [float(r["z"]) for r in diag if r["defect_family"] == fam
                  and r["defect"] == lab and r["statistic"] == s]
             M[i, j] = np.mean(v) if v else np.nan
-    groups = ["ok"] + sorted({c["group"] for c in conf if c["group"] != "ok"})
     diags = ["ok", "noise_k", "gain_like", "blur", "warp_shift", "warp_rot"]
+    # same fixed order for rows and columns, so correct calls sit on the
+    # diagonal instead of being scattered across the matrix
+    present = {c["group"] for c in conf}
+    groups = [d for d in diags if d in present]
     C = np.array([[sum(1 for c in conf if c["group"] == g and c["diagnosis"] == d)
                    for d in diags] for g in groups], float)
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(8.6, 0.26 * M.shape[0] + 2.0),
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(9.0, 0.26 * M.shape[0] + 2.0),
                                    gridspec_kw={"width_ratios": [1.2, 1]})
     lim = 6.0
     im = ax1.imshow(np.clip(M, -lim, lim), cmap=cmap, vmin=-lim, vmax=lim,
@@ -573,12 +576,13 @@ def make_figures():
     ax1.set_yticklabels([f"{f}/{l}" for f, l in rungs]
                         + [f"REAL vs {t}" for t in real_tags], fontsize=8)
     ax1.axhline(len(rungs) - 0.5, color="k", lw=0.8)
-    ax1.set_title("signature: mean z per statistic, both angles (clipped at +-6)",
+    ax1.set_title("signature: mean z per statistic (clipped at ±6)",
                   fontsize=9)
-    plt.colorbar(im, ax=ax1, fraction=0.03, pad=0.02)
+    cb1 = fig.colorbar(im, ax=ax1, fraction=0.03, pad=0.02)
+    cb1.ax.tick_params(labelsize=7)
     rowsum = C.sum(axis=1, keepdims=True)
-    ax2.imshow(C / np.maximum(rowsum, 1), cmap="Blues", vmin=0, vmax=1,
-               aspect="auto")
+    im2 = ax2.imshow(C / np.maximum(rowsum, 1), cmap="Blues", vmin=0, vmax=1,
+                     aspect="auto")
     for i in range(C.shape[0]):
         for j in range(C.shape[1]):
             if C[i, j] > 0:
@@ -589,9 +593,13 @@ def make_figures():
     ax2.set_xticklabels(diags, fontsize=8, rotation=30, ha="right")
     ax2.set_yticks(range(len(groups)))
     ax2.set_yticklabels(groups, fontsize=8)
-    ax2.set_xlabel("rule diagnosis")
-    ax2.set_ylabel("true family (grouped)")
-    ax2.set_title("pre-registered rule, both angles", fontsize=9)
+    ax2.set_xlabel("rule diagnosis", fontsize=8.5)
+    ax2.set_ylabel("true family", fontsize=8.5)
+    ax2.set_title("pre-registered rule: counts on the diagonal = correct",
+                  fontsize=9)
+    cb2 = fig.colorbar(im2, ax=ax2, fraction=0.05, pad=0.03)
+    cb2.set_label("fraction of row", fontsize=7.5)
+    cb2.ax.tick_params(labelsize=7)
     fig.tight_layout()
     out = io_utils.fig_path("wp2_diag_confusion.png")
     fig.savefig(out, dpi=200)

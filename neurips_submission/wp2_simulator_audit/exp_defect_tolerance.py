@@ -503,19 +503,17 @@ def make_figures():
     # the sim-hole row is omitted: its 12-seed band spans [-0.03, +0.27]
     # (initialisation-dominated), so it carries no tolerance signal; the
     # numbers stay in the summary table
-    panels = [("sim footprint", is_sim, "footprint",
-               "r(net) - r(physics)\n(up = better)"),
-              ("real scan", is_real, "footprint",
-               "r(net) - r(physics)\n(up = better)")]
+    panels = [("sim\nfootprint", is_sim, "footprint"),
+              ("real\nscan", is_real, "footprint")]
     fig, axes = plt.subplots(len(panels), len(families),
-                             figsize=(1.45 * len(families),
-                                      1.1 * len(panels)),
+                             figsize=(1.5 * len(families) + 0.6,
+                                      1.25 * len(panels) + 0.35),
                              sharey="row")
     axes = np.atleast_2d(axes)
     for j, fam in enumerate(families):
         key, nominal = config.DEFECT_X[fam]
         rungs = [(l, k) for l, k in config.DEFECT_LADDERS[fam]]
-        for i, (title, sel, reg, ylab) in enumerate(panels):
+        for i, (title, sel, reg) in enumerate(panels):
             ax = axes[i, j]
             # seed band at the nominal x
             b = [_delta_r(rows, "nominal", "nominal", sel, reg)] + [
@@ -547,7 +545,7 @@ def make_figures():
                 ax.xaxis.set_minor_formatter(NullFormatter())
             if key == "blur_mode":
                 ax.set_xticks([0, 1])
-                ax.set_xticklabels(["cubic", "bilinear"])
+                ax.set_xticklabels(["cubic", "bilin."])
             if i == 0:
                 ax.set_title({"noise_k": "noise const. k (x)",
                               "gain": "gain slope (x)",
@@ -557,12 +555,24 @@ def make_figures():
                               "warp_rot": "reg. rotation (deg)"
                               }.get(fam, fam), fontsize=9)
             if j == 0:
-                ax.set_ylabel(f"{title}\n{ylab}", fontsize=8.5)
+                ax.set_ylabel(title, fontsize=9)
             ax.grid(alpha=0.25)
             ax.tick_params(labelsize=7.5)
-    fig.suptitle("One net per broken training simulator; grey band = "
-                 "12 nominal seeds, orange = nominal", fontsize=9)
-    fig.tight_layout()
+
+    seed_patch = plt.Rectangle((0, 0), 1, 1, color=GREY, alpha=0.25,
+                               label="12 nominal seeds")
+    nominal_pt = plt.Line2D([0], [0], marker="s", ms=6, color=ORANGE,
+                            ls="none", label="nominal simulator")
+    rung_line = plt.Line2D([0], [0], marker="o", ms=4, color=NAVY, lw=1.5,
+                           label="broken simulator")
+    fig.legend(handles=[rung_line, nominal_pt, seed_patch],
+              loc="lower center", bbox_to_anchor=(0.53, -0.02), ncol=3,
+              fontsize=8.5, frameon=False, handlelength=1.6,
+              columnspacing=1.4)
+    fig.suptitle(r"$\Delta r = r_{\rm net} - r_{\rm physics}$ (up = better) "
+                "per broken training simulator", fontsize=9.5, y=1.0)
+    fig.subplots_adjust(left=0.095, right=0.99, top=0.86, bottom=0.2,
+                        hspace=0.45, wspace=0.15)
     out = io_utils.fig_path("wp2_tolerance_curves.png")
     fig.savefig(out, dpi=200)
     fig.savefig(out.replace(".png", ".pdf"))
