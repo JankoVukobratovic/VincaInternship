@@ -57,6 +57,7 @@ ELEMENTS = core.ELEMENTS
 CSV = "wp3_degradation_grid"
 HARSH = dict(angle=20.0, hole=(14, 20), dose=1.0)
 NAVY, GREY, ORANGE = "#1f2a44", "#8c8c8c", "#c8641e"
+TEAL = "#1a6b64"  # the hybrid candidate: the one that wins everywhere
 
 
 # ---------------------------------------------------------------------------
@@ -394,9 +395,9 @@ def make_figures():
                                                   for m in maps.values()]))))
     vmax = max(vmax, 0.05)
 
-    fig = plt.figure(figsize=(7.4, 5.2))
+    fig = plt.figure(figsize=(8.4, 5.2))
     gs = fig.add_gridspec(2, 3, height_ratios=[1.0, 1.15], hspace=0.55,
-                          wspace=0.35)
+                          wspace=0.4)
     norm = TwoSlopeNorm(vmin=-vmax, vcenter=0.0, vmax=vmax)
     heat_axes = []
     for k, d in enumerate(doses):
@@ -410,7 +411,7 @@ def make_figures():
                 v = M[i, j]
                 if np.isfinite(v):
                     ax.text(j, i, f"{v:+.2f}", ha="center", va="center",
-                            fontsize=7.5,
+                            fontsize=7,
                             color="white" if abs(v) > 0.6 * vmax else "black")
         ax.set_xticks(range(len(holes)))
         ax.set_xticklabels([str(p) for p in hole_px], fontsize=8)
@@ -421,15 +422,15 @@ def make_figures():
             ax.set_ylabel("tilt angle (deg)")
         ax.set_title(f"dose {d:g}", fontsize=10)
     cbar = fig.colorbar(im, ax=heat_axes, fraction=0.05, pad=0.02)
-    cbar.set_label("r(net) minus best non-learned\n(red = net wins)",
-                   fontsize=8)
+    cbar.set_label("Δr vs best non-learned\n(red = net wins)", fontsize=8)
     cbar.ax.tick_params(labelsize=7)
 
     # side panels: r vs hole area at 20 deg, dose 1, hole and footprint
     style = {"det": dict(color=ORANGE, ls="-", marker="o"),
              "net": dict(color=NAVY, ls="-", marker="o"),
              "ens_jitter": dict(color=NAVY, ls="--", marker="s"),
-             "classical_biharmonic+net": dict(color=NAVY, ls=":", marker="^"),
+             "classical_biharmonic+net": dict(color=TEAL, ls="-", marker="^",
+                                              lw=2.2, zorder=5),
              "classical_nearest": dict(color=GREY, ls="-", marker="v"),
              "classical_biharmonic": dict(color=GREY, ls="--", marker="D"),
              "classical_telea": dict(color=GREY, ls=":", marker="x"),
@@ -446,8 +447,9 @@ def make_figures():
                     xs.append(px)
                     ys.append(v)
             if xs:
-                st = style.get(c, dict(color=GREY, ls="-", marker="."))
-                ax.plot(xs, ys, ms=4, lw=1.4, label=c, **st)
+                st = dict(color=GREY, ls="-", marker=".", lw=1.4)
+                st.update(style.get(c, {}))
+                ax.plot(xs, ys, ms=4, label=c, **st)
         ax.set_xlabel("hole area (px)", fontsize=9)
         if k == 0:
             ax.set_ylabel("r vs truth (up = better)", fontsize=9)
@@ -492,7 +494,7 @@ def make_figures():
             ax.set_ylabel("tilt angle (deg)", fontsize=9)
         ax.set_title(f"dose {d:g}", fontsize=10)
     cbar2 = fig2.colorbar(im, ax=list(haxes), fraction=0.05, pad=0.02)
-    cbar2.set_label("r(net) minus best\nnon-learned", fontsize=8)
+    cbar2.set_label("Δr vs best\nnon-learned", fontsize=8)
     cbar2.ax.tick_params(labelsize=7)
     out2 = io_utils.fig_path("wp3_regime_heat.png")
     fig2.savefig(out2, dpi=200, bbox_inches="tight")
