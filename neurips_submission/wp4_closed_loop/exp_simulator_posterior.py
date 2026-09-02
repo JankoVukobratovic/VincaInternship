@@ -564,33 +564,41 @@ def make_figures():
     accepted = [r for r in draws if int(r[f"acc_{int(ACCEPT * 100)}"])]
     have_eval = bool(cov)
     fig, axes = plt.subplots(2 if have_eval else 1, 4,
-                             figsize=(8.8, 2.95 if have_eval else 2.0))
+                             figsize=(9.4, 3.15 if have_eval else 2.0))
     axes = np.atleast_2d(axes)
     for j, (key, title) in enumerate(knobs):
         ax = axes[0, j]
         pri = np.array([float(r[key]) for r in draws])
         pos = np.array([float(r[key]) for r in accepted])
         if key == "blur_bilinear":
-            ax.bar([0, 1], [pri.mean(), pos.mean()], color=[GREY, NAVY],
-                   width=0.6)
+            bar_h = [pri.mean(), pos.mean()]
+            ax.bar([0, 1], bar_h, color=[GREY, NAVY], width=0.6)
+            for xb, hb in zip([0, 1], bar_h):
+                ax.text(xb, max(hb, 0.03) + 0.03, f"{hb:.3f}", ha="center",
+                        fontsize=7.5)
             ax.set_xticks([0, 1])
             ax.set_xticklabels(["prior", "posterior"])
-            ax.set_ylim(0, 1)
+            ax.set_ylim(0, 1.05)
         else:
             bins = np.linspace(min(pri.min(), pos.min()), max(pri.max(), pos.max()), 26)
-            ax.hist(pri, bins=bins, density=True, color=GREY, alpha=0.55,
-                    label="prior")
+            ax.hist(pri, bins=bins, density=True, color=GREY, alpha=0.55)
             ax.hist(pos, bins=bins, density=True, histtype="stepfilled",
-                    color=NAVY, alpha=0.6, edgecolor=NAVY, linewidth=1.6,
-                    label="posterior")
+                    color=NAVY, alpha=0.6, edgecolor=NAVY, linewidth=1.6)
             ax.set_yticks([])
         ax.set_title(title, fontsize=9)
         ax.tick_params(labelsize=8)
-    axes[0, 0].legend(frameon=False, fontsize=8)
+    prior_patch = plt.Rectangle((0, 0), 1, 1, color=GREY, alpha=0.55,
+                                label="prior")
+    post_patch = plt.Rectangle((0, 0), 1, 1, color=NAVY, alpha=0.6,
+                               label="posterior")
+    fig.legend(handles=[prior_patch, post_patch], loc="upper left",
+              bbox_to_anchor=(0.005, 1.06 if have_eval else 1.16), ncol=2,
+              fontsize=9, frameon=False, handlelength=1.4)
     if have_eval:
         is_real = lambda s: s == "REAL_ruotato"     # noqa: E731
         kinds = ("control", "prior", "posterior")
         cols = {"control": GREY, "prior": "#5b76b3", "posterior": NAVY}
+        mks = {"control": "s", "prior": "^", "posterior": "D"}
         # (a) calibration on the real scan
         ax = axes[1, 0]
         zs = list(config.COVERAGE_Z)
@@ -599,10 +607,9 @@ def make_figures():
         for kind in kinds:
             ys = [_mean(_f(cov, source=is_real, region="footprint", band="total",
                            ensemble=kind, z=z), "coverage") for z in zs]
-            ax.plot(xg, ys, marker="o", ms=4, lw=1.5, color=cols[kind], label=kind)
+            ax.plot(xg, ys, marker=mks[kind], ms=5, lw=1.5, color=cols[kind])
         ax.set_xlabel("nominal coverage")
         ax.set_ylabel("empirical, real scan")
-        ax.legend(frameon=False, fontsize=8)
         ax.grid(alpha=0.25)
         # (b) spread per line
         ax = axes[1, 1]
@@ -619,19 +626,16 @@ def make_figures():
         ax = axes[1, 2]
         for cand, col, mk, lw in (
                 ("deterministic", ORANGE, "o", 2.4),
-                ("control_mean", GREY, "s", 1.1),
-                ("prior_mean", "#5b76b3", "^", 1.1),
-                ("posterior_mean", NAVY, "D", 1.1)):
+                ("control_mean", GREY, mks["control"], 1.1),
+                ("prior_mean", cols["prior"], mks["prior"], 1.1),
+                ("posterior_mean", NAVY, mks["posterior"], 1.1)):
             vals = [_mean(_f(acc, source=is_real, region="footprint",
                              candidate=cand, element=el), "r") for el in ELEMENTS]
-            ax.plot(x, vals, marker=mk, ms=4, lw=lw, color=col,
-                    zorder=5 if cand == "deterministic" else 3,
-                    label=cand.replace("_mean", "").replace(
-                        "deterministic", "physics"))
+            ax.plot(x, vals, marker=mk, ms=5, lw=lw, color=col,
+                    zorder=5 if cand == "deterministic" else 3)
         ax.set_xticks(x)
         ax.set_xticklabels(ELEMENTS, fontsize=7, rotation=45)
         ax.set_title("r vs F2 (up = better)", fontsize=9)
-        ax.legend(frameon=False, fontsize=7)
         ax.grid(alpha=0.25)
         # (d) spread vs coverage summary
         ax = axes[1, 3]
@@ -639,16 +643,32 @@ def make_figures():
             s = _mean(_f(spr, source=is_real, region="footprint", ensemble=kind), "spread_rms")
             c = _mean(_f(cov, source=is_real, region="footprint", band="total",
                          ensemble=kind, z=2.0), "coverage")
-            ax.scatter([s], [c], s=60, color=cols[kind], label=kind)
+            ax.scatter([s], [c], s=60, color=cols[kind], marker=mks[kind])
         ax.axhline(uq.gauss_cov(2.0), color="k", lw=0.8, alpha=0.5)
         ax.set_xlabel("spread rms (counts)")
         ax.set_ylabel("coverage at z = 2")
-        ax.legend(frameon=False, fontsize=8)
         ax.grid(alpha=0.25)
-    fig.tight_layout()
+
+        row2_handles = [
+            plt.Line2D([0], [0], color=ORANGE, marker="o", lw=2.4,
+                      label="physics"),
+            plt.Line2D([0], [0], color=GREY, marker=mks["control"], lw=1.5,
+                      label="control"),
+            plt.Line2D([0], [0], color=cols["prior"], marker=mks["prior"],
+                      lw=1.5, label="prior ensemble"),
+            plt.Line2D([0], [0], color=NAVY, marker=mks["posterior"], lw=1.5,
+                      label="posterior ensemble"),
+        ]
+        fig.legend(handles=row2_handles, loc="lower center",
+                  bbox_to_anchor=(0.5, -0.04), ncol=4, fontsize=8.5,
+                  frameon=False, handlelength=1.6, columnspacing=1.4)
+    fig.subplots_adjust(left=0.06, right=0.99,
+                        top=0.86 if have_eval else 0.78,
+                        bottom=0.2 if have_eval else 0.14,
+                        hspace=0.5, wspace=0.35)
     out = io_utils.fig_path("wp4_prior_posterior.png")
-    fig.savefig(out, dpi=200)
-    fig.savefig(out.replace(".png", ".pdf"))
+    fig.savefig(out, dpi=200, bbox_inches="tight")
+    fig.savefig(out.replace(".png", ".pdf"), bbox_inches="tight")
     plt.close(fig)
     print("saved:", out)
 

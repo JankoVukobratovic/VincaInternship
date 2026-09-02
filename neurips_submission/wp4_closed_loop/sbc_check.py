@@ -164,12 +164,12 @@ def make_figure(cont_rows):
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
     NAVY, GREY = "#1f2a44", "#8c8c8c"
-    fig, axes = plt.subplots(2, 3, figsize=(7.2, 4.3))
+    fig, axes = plt.subplots(2, 3, figsize=(7.2, 3.7))
     axes = axes.ravel()
-    n_acc = cont_rows[0]["n_acc"]
+    n_acc = int(float(cont_rows[0]["n_acc"]))
     for j, name in enumerate(CONT_KNOBS):
         ax = axes[j]
-        ranks = np.array([r[f"rank_frac_{name}"] for r in cont_rows])
+        ranks = np.array([float(r[f"rank_frac_{name}"]) for r in cont_rows])
         nb = 6
         ax.hist(ranks, bins=np.linspace(0, 1, nb + 1), color=NAVY,
                edgecolor="white", linewidth=0.6)
@@ -183,8 +183,9 @@ def make_figure(cont_rows):
             ax.set_xlabel("rank / n_posterior", fontsize=8)
     fig.suptitle(f"SBC rank histograms, {len(cont_rows)} trials"
                 f" ({n_acc} posterior draws each); flat = calibrated",
-                fontsize=9)
-    fig.tight_layout(rect=(0, 0, 1, 0.94))
+                fontsize=9, y=0.99)
+    fig.subplots_adjust(left=0.08, right=0.99, top=0.88, bottom=0.11,
+                        hspace=0.4, wspace=0.25)
     out = io_utils.fig_path("wp4_sbc.png")
     fig.savefig(out, dpi=200)
     fig.savefig(out.replace(".png", ".pdf"))
